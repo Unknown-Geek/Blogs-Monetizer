@@ -56,6 +56,9 @@ class BlogService:
             else:
                 raise Exception("No content returned from Gemini API")
                 
+            # Preprocess content to handle edge cases
+            content = self._enhance_content_preprocessing(content)
+                
             # Add enhanced HTML formatting
             formatted_content = self._format_content(content)
             return formatted_content
@@ -80,6 +83,8 @@ Please follow these guidelines:
 - Use a friendly, conversational tone
 - Include a conclusion section
 - Format using Markdown (# for H1, ## for H2, etc.)
+- For bold text use **double asterisks** (not single)
+- For bullet points, ensure there's a space after the asterisk: * item (not *item)
 
 Make sure the content is original, informative, and engaging.
 """
@@ -132,7 +137,11 @@ Make sure the content is original, informative, and engaging.
                         list_items = []
                     in_list = True
                     list_type = "ul"
-                list_items.append(p[2:].strip())
+                # Strip list marker but preserve formatting
+                list_content = p[2:].strip()
+                # Process formatting within list item (bold, italic, links)
+                list_content = self._process_inline_formatting(list_content)
+                list_items.append(list_content)
             elif re.match(r'^[0-9]+\.', p):
                 # Numbered list
                 if not in_list or list_type != "ol":
@@ -144,6 +153,8 @@ Make sure the content is original, informative, and engaging.
                     list_type = "ol"
                 # Extract content after the number and dot
                 item_content = re.sub(r'^[0-9]+\.', '', p).strip()
+                # Process formatting within list item (bold, italic, links)
+                item_content = self._process_inline_formatting(item_content)
                 list_items.append(item_content)
             else:
                 if in_list:
@@ -152,12 +163,8 @@ Make sure the content is original, informative, and engaging.
                     in_list = False
                     list_items = []
                     
-                # Process links in markdown format [text](url)
-                p = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', p)
-                
-                # Process bold and italic
-                p = re.sub(r'\*\*([^*]+)\*\*', r'<strong>\1</strong>', p)
-                p = re.sub(r'\*([^*]+)\*', r'<em>\1</em>', p)
+                # Process all inline formatting
+                p = self._process_inline_formatting(p)
                 
                 # Regular paragraph
                 formatted_paragraphs.append(f"<p>{p}</p>")
@@ -168,6 +175,19 @@ Make sure the content is original, informative, and engaging.
         
         return "\n".join(formatted_paragraphs)
     
+    def _process_inline_formatting(self, text: str) -> str:
+        """Process inline Markdown formatting (bold, italic, links) within text"""
+        # Process links in markdown format [text](url)
+        text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+        
+        # Process bold text first with improved regex
+        text = re.sub(r'\*\*([^*]*(?:\*(?!\*)[^*]*)*)\*\*', r'<strong>\1</strong>', text)
+        
+        # Then process italic text with improved regex that preserves already processed bold
+        text = re.sub(r'\*([^*<>]*(?:<[^>]+>[^*<>]*)*)\*', r'<em>\1</em>', text)
+        
+        return text
+
     def _format_list(self, items: List[str], list_type: str) -> str:
         """Helper to format a list in HTML"""
         if not items:
@@ -179,6 +199,26 @@ Make sure the content is original, informative, and engaging.
         html_list += f"</{list_type}>"
         
         return html_list
+
+    def _enhance_content_preprocessing(self, content: str) -> str:
+        """
+        Preprocess content to handle special edge cases before standard formatting
+        - Fixes cases where asterisks are used both as list markers and for formatting
+        - Improves handling of complex formatting patterns
+        """
+        # Handle special case: List items with bold text that start with "* **"
+        # For example: "* **Bold Item:**" should become properly formatted
+        content = re.sub(r'^\* \*\*([^*]+)\*\*', r'* <strong>\1</strong>', content, flags=re.MULTILINE)
+        
+        # Handle complex case like your sample:
+        # "**Technological Development:** ... * **Mission Complexity:** ..."
+        content = re.sub(r'(\*\*[^*:]+:\*\*[^*]+)\* (\*\*[^*:]+:\*\*)', r'\1<br>• \2', content)
+        
+        # Handle case where a single asterisk is used in the middle of a sentence
+        # but isn't meant for formatting (often in scientific or mathematical content)
+        content = re.sub(r'(\w)\*(\w)', r'\1*\2', content)
+        
+        return content
 
     def publish_blog(self, title: str, content: str, image_path: Optional[str] = None, labels: Optional[List[str]] = None) -> Dict:
         """Publish blog content to Blogger platform"""
@@ -243,6 +283,49 @@ Make sure the content is original, informative, and engaging.
             if image_url:
                 image_alt = title if title else "Blog image"
                 post_content = f"<img src='{image_url}' alt='{image_alt}' class='featured-image'/>\n{content}"
+                
+            # Add CSS for ad containers
+            ad_styles = """
+            <style>
+            .ad-container {
+                margin: 20px 0;
+                padding: 10px;
+                text-align: center;
+                background-color: #f9f9f9;
+                border-radius: 5px;
+                clear: both;
+                overflow: hidden;
+            }
+            .ad-container.leaderboard {
+                max-width: 728px;
+                margin: 20px auto;
+            }
+            .ad-container.skyscraper {
+                float: right;
+                margin: 0 0 15px 15px;
+            }
+            .ad-container.rectangle {
+                margin: 20px auto;
+                max-width: 300px;
+            }
+            .custom-ad-content {
+                padding: 20px;
+                border: 1px dashed #ccc;
+                color: #777;
+                font-size: 14px;
+            }
+            </style>
+            """
+            
+            # Add styles to the post content
+            post_content = ad_styles + post_content
+            
+            # Convert ad placement hooks to actual ad code
+            try:
+                from services.ad_service import ad_service
+                post_content = ad_service.insert_ads_into_content(post_content, network="google")
+            except Exception as e:
+                print(f"Warning: Could not insert ads into content: {str(e)}")
 
             # Create the post
             post = {
@@ -273,5 +356,85 @@ Make sure the content is original, informative, and engaging.
                 "success": False,
                 "error": error_message
             }
+
+    def get_recent_posts(self, max_results=10):
+        """Get a list of recent blog posts"""
+        try:
+            # Create credentials from environment variables
+            if self.blogger_client_id and self.blogger_client_secret and self.blogger_refresh_token:
+                # Create OAuth credentials from environment variables
+                credentials = Credentials(
+                    None,  # No access token initially
+                    refresh_token=self.blogger_refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=self.blogger_client_id,
+                    client_secret=self.blogger_client_secret
+                )
+            else:
+                raise Exception("Blogger credentials not available in environment variables")
+                
+            service = build("blogger", "v3", credentials=credentials)
+            
+            # Get recent posts
+            posts = service.posts().list(
+                blogId=self.blogger_id,
+                maxResults=max_results,
+                status="LIVE",  # STATUS MUST BE UPPERCASE - "LIVE", "DRAFT", "SCHEDULED" or "SOFT_TRASHED"
+                fetchBodies=True
+            ).execute()
+            
+            if "items" in posts:
+                return posts["items"]
+            else:
+                return []
+                
+        except Exception as e:
+            print(f"Error fetching recent posts: {str(e)}")
+            return []
+    
+    def update_post(self, post_id, content=None, title=None, labels=None):
+        """Update an existing blog post"""
+        try:
+            # Create credentials from environment variables
+            if self.blogger_client_id and self.blogger_client_secret and self.blogger_refresh_token:
+                # Create OAuth credentials from environment variables
+                credentials = Credentials(
+                    None,  # No access token initially
+                    refresh_token=self.blogger_refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=self.blogger_client_id,
+                    client_secret=self.blogger_client_secret
+                )
+            else:
+                raise Exception("Blogger credentials not available in environment variables")
+                
+            service = build("blogger", "v3", credentials=credentials)
+            
+            # First get the existing post
+            existing_post = service.posts().get(
+                blogId=self.blogger_id,
+                postId=post_id
+            ).execute()
+            
+            # Update post fields if provided
+            if content:
+                existing_post["content"] = content
+            if title:
+                existing_post["title"] = title
+            if labels:
+                existing_post["labels"] = labels
+                
+            # Update the post
+            result = service.posts().update(
+                blogId=self.blogger_id,
+                postId=post_id,
+                body=existing_post
+            ).execute()
+            
+            return True
+                
+        except Exception as e:
+            print(f"Error updating post: {str(e)}")
+            return False
 
 blog_service = BlogService()

@@ -112,12 +112,11 @@ async def publish(request: PublishRequest):
             request.content,
             request.image_path,
             request.labels
-        )
-        
-        # Share on social media if requested
+        )        # Share on social media if requested
         if request.share_on_social:
-            social_result = social_service.share_on_twitter(
-                f"New blog post: {request.title} - Check it out! {result.get('url', '')}"
+            social_result = social_service.share_across_platforms(
+                message=f"New blog post: {request.title} - Check it out!",
+                link=result.get('url', '')
             )
             result['social_share'] = social_result
             

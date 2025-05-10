@@ -7,7 +7,7 @@ sdk: docker
 pinned: false
 ---
 
-# Blogs Monetizer 🚀
+# Blogs Monetizer
 
 A comprehensive system for generating, optimizing, and monetizing blog content with AI assistance.
 
@@ -15,13 +15,14 @@ A comprehensive system for generating, optimizing, and monetizing blog content w
 
 This system automates the entire process of blog content creation and publication:
 
-1. **Trend Detection**: Automatically discovers trending topics from Google Trends, news sources, and social media
+1. **Trend Detection**: Automatically discovers trending topics from news sources and social media
 2. **Content Generation**: Creates high-quality blog posts using Google's Gemini API
 3. **SEO Optimization**: Analyzes and improves content for search engine visibility
-4. **Image Generation**: Sources relevant images from Unsplash with proper attribution
-5. **Publishing**: Publishes content to Blogger with formatting intact
-6. **Social Sharing**: Shares new posts on Twitter and other platforms
-7. **Automation**: Schedules multiple posts per day with configurable frequency
+4. **Monetization**: Implements optimal ad placement strategies for revenue generation
+5. **Image Generation**: Sources relevant images from Unsplash with proper attribution
+6. **Publishing**: Publishes content to Blogger with formatting intact
+7. **Social Sharing**: Logging of social sharing activity (actual sharing disabled)
+8. **Automation**: Schedules multiple posts per day with configurable frequency
 
 ## System Architecture
 
@@ -36,6 +37,7 @@ The system is built with a modular service-based architecture:
 - `trend_service.py`: Detects trending topics across various sources
 - `blog_service.py`: Generates and publishes blog content
 - `seo_service.py`: Analyzes and optimizes content for SEO
+- `ad_service.py`: Implements advertising and monetization strategies
 - `image_service.py`: Generates relevant images for posts
 - `social_service.py`: Shares content across social platforms
 - `automation_service.py`: Orchestrates the entire process with scheduling
@@ -50,7 +52,7 @@ The system is built with a modular service-based architecture:
   - Blogger API
   - Unsplash API
   - News API
-  - Twitter API (optional for social sharing)
+  - News API (for trending topics)
 
 ### Installation
 
@@ -96,6 +98,19 @@ To start the automated blog posting:
 ```
 python auto_blog.py
 ```
+
+## Quick Start
+
+The following scripts provide quick access to key functionality:
+
+- `generate_sample_blog.py` - Creates and publishes a single blog post
+- `auto_blog.py` - Runs the automated blog publishing system continuously
+- `enhance_blog_ads.py` - Updates existing blog posts with improved ad displays
+- `app.py` - Starts the FastAPI server for web interface access
+
+For testing specific components:
+
+- See the `tests/` directory for component-specific test scripts
 
 ## API Endpoints
 
@@ -155,4 +170,34 @@ Recent improvements to the system include:
 2. **Image Service Fallbacks**: Ensures image generation never fails
 3. **Content Formatting**: Better markdown to HTML conversion for blog posts
 4. **Trend Service Caching**: Reduces API calls and handles rate limiting
-5. **Social Media Integration**: Better error handling and multi-platform support
+5. **Duplicate Prevention**: Ensures similar articles aren't published on the same day
+6. **Auto Image Cleanup**: Clears image directory after successful posting to save space
+7. **Removed Google Trends**: Shifted to more reliable news sources for trending topics
+
+## Monetization Features
+
+The system implements comprehensive monetization strategies for blog content:
+
+### Ad Formats and Placement
+
+- **Banner & Leaderboard Ads**: Optimally placed wide format ads ("wide fellas")
+- **Skyscraper Ads**: Vertical ads ("long lads") placed alongside content
+- **Rectangle Ads**: Medium-sized ads integrated within content
+- **Interstitial Ads**: Full-page ads displayed at strategic points
+
+### Revenue Models
+
+- **CPM (Cost Per Thousand Impressions)**: Earn based on ad views
+- **CPA (Cost Per Action/Click)**: Earn when users interact with ads
+
+### Optimization Strategies
+
+- **Content-Length Optimization**: Longer content creates more opportunities for ad placement
+- **Audience Targeting**: Ad relevance increases through demographic analysis
+- **Advertiser Relationships**: Direct advertiser connections yield better rates than networks
+- **Ethical Considerations**: Configurable density and content-appropriate ad filtering
+
+### Integration Methods
+
+- **Ad Networks**: Ready to integrate with Google Ads, Carbon, and other networks
+- **Direct Partnerships**: Support for custom direct advertiser relationships

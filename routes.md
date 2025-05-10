@@ -86,7 +86,7 @@ This document provides an overview of all available API endpoints in the Monetiz
       "url": "https://example.blogspot.com/post",
       "social_share": {
         "success": true,
-        "id": "twitter_post_id"
+        "message": "Social sharing is disabled"
       }
     }
   }
@@ -100,7 +100,7 @@ This document provides an overview of all available API endpoints in the Monetiz
 - **URL**: `/api/trending-topics`
 - **Method**: `GET`
 - **Query Parameters**:
-  - `sources`: Comma-separated list of sources (e.g., "google,news,twitter")
+  - `sources`: Comma-separated list of sources (e.g., "google,news")
   - `count`: Number of topics to return (default: 5)
 - **Response**:
   ```json

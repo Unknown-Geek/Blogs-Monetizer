@@ -272,13 +272,12 @@ class AutomationService:
                         
                         # Add hashtags from the labels
                         hashtags = [f"#{label.replace(' ', '')}" for label in labels[:3] if ' ' not in label]
-                        if hashtags:
-                            share_message += " " + " ".join(hashtags)
+                        if hashtags:                        share_message += " " + " ".join(hashtags)
                             
                         share_result = social_service.share_across_platforms(
                             message=share_message,
-                            link=result.get("url", ""),
-                            platforms=["twitter"]  # Only use Twitter for sharing
+                            link=result.get("url", "")
+                            # No specific platforms needed since all sharing is disabled
                         )
                         log_entry["social_sharing_result"] = share_result
                 except Exception as e:

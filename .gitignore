@@ -61,3 +61,4 @@ yarn-error.log*
 Thumbs.db
 *.swp
 automation_log.json
+cache/

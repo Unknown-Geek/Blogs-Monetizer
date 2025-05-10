@@ -10,7 +10,7 @@ Monetize-blogs is a platform designed to help content creators and bloggers stre
 
 ### Autonomous Blog Generation
 
-- **Trend Detection**: Automatically identifies trending topics from Google Trends, Twitter, and News sources
+- **Trend Detection**: Automatically identifies trending topics from Google Trends and News sources
 - **Scheduled Publishing**: Configurable schedule for automatic blog generation and posting
 - **Zero-Touch Operation**: Complete end-to-end process from topic selection to social sharing
 
@@ -41,7 +41,7 @@ Monetize-blogs is a platform designed to help content creators and bloggers stre
 
 ### Social Media Integration
 
-- **Twitter Sharing**: Automatically share blog posts on Twitter when published
+- **Social Logging**: Logs when blog posts would be shared on social media (without actual posting)
 - **Custom Messages**: Configure sharing messages with blog links
 
 ### Analytics
@@ -53,7 +53,7 @@ Monetize-blogs is a platform designed to help content creators and bloggers stre
 
 - **RESTful API**: FastAPI-based API with endpoints for all major features
 - **Service-Based Architecture**: Modular services for blog, SEO, image, social media, trend detection, and automation
-- **API Integrations**: Connectors for Gemini, Blogger, Google Analytics, Twitter, and trending topic sources
+- **API Integrations**: Connectors for Gemini, Blogger, Google Analytics, and trending topic sources
 - **Scheduling System**: Background processes for automated content generation
 
 ## Project Status
@@ -64,7 +64,7 @@ The project is currently in active development with the following components imp
 - ✅ Image generation service (fully implemented)
 - ✅ Blog generation functionality (fully implemented)
 - ✅ Backend API structure and endpoints
-- ✅ Social media service (implemented for Twitter)
+- ✅ Social media service (implemented for logging only)
 - ✅ Trend detection service (fully implemented)
 - ✅ Automation service for scheduled posting (fully implemented)
 - ⏳ Analytics dashboard (data integration pending)
@@ -74,7 +74,7 @@ The project is currently in active development with the following components imp
 ### Prerequisites
 
 - Python 3.8+
-- API keys for: Gemini, Google (Blogger and Analytics), Twitter, News API
+- API keys for: Gemini, Google (Blogger and Analytics), News API
 
 ### Setup
 
@@ -105,15 +105,19 @@ The project is currently in active development with the following components imp
    # Set environment variables for API keys
    $env:GEMINI_API_KEY="your_gemini_api_key"
    $env:BLOGGER_ID="your_blogger_id"
-   $env:TWITTER_BEARER_TOKEN="your_twitter_bearer_token"
-   $env:NEWS_API_KEY="your_news_api_key"
    ```
+
+# No Twitter API needed
+
+$env:NEWS_API_KEY="your_news_api_key"
+
+````
 
 4. Start the backend server:
 
-   ```powershell
-   python app.py
-   ```
+```powershell
+python app.py
+````
 
 ### Running Autonomous Blog Generator
 
@@ -153,7 +157,7 @@ The autonomous blog generator supports these configuration options:
 {
   "posts_per_day": 1,
   "min_hours_between_posts": 8,
-  "trending_sources": ["google", "news", "twitter"],
+  "trending_sources": ["google", "news"],
   "categories": ["technology", "business", "science"],
   "min_seo_score": 70
 }
@@ -167,7 +171,6 @@ The application uses a `.env` file to manage configuration. Here are the key var
 | ----------------------- | -------------------------------------------- | ------------- |
 | GEMINI_API_KEY          | Google Gemini API key for content generation | -             |
 | BLOGGER_ID              | Your Blogger ID                              | -             |
-| TWITTER_BEARER_TOKEN    | Twitter API bearer token                     | -             |
 | NEWS_API_KEY            | News API key for trending topics             | -             |
 | POSTS_PER_DAY           | Number of posts to generate per day          | 1             |
 | MIN_HOURS_BETWEEN_POSTS | Minimum hours between posts                  | 8             |
