@@ -20,6 +20,7 @@ from .seo_service import seo_service
 from .image_service import image_service
 from .social_service import social_service
 from .image_utils import clear_images_directory
+from .image_utils import clear_images_directory
 
 class AutomationService:
     """Service to manage automated blog generation and publishing"""
@@ -203,47 +204,19 @@ class AutomationService:
                 labels = []  # Continue without labels
             
             # 9. Publish blog
-
-            
-            try:
-
-            
-                result = blog_service.publish_blog(
-
-            
+            try:                result = blog_service.publish_blog(
                     title=blog_title,
-
-            
                     content=content,
-
-            
                     image_path=image_path,
-
-            
                     labels=labels
-
-            
                 )
-
-            
                 
-
-            
                 if result.get("success", True):  # Default to True for backward compatibility
                     log_entry["publish_result"] = result
                     log_entry["published_url"] = result.get("url", "")
                     
                     # Reset failure count for this topic
                     self._reset_failure_count(selected_topic)
-                    
-                    # Clear the images directory after successful posting
-                    try:
-                        if clear_images_directory():
-                            log_entry["images_cleared"] = True
-                        else:
-                            log_entry["images_cleared"] = False
-                    except Exception as e:
-                        log_entry["images_clear_error"] = str(e)
                     
                     # Clear the images directory after successful posting
                     try:
