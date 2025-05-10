@@ -20,7 +20,7 @@ if os.path.exists(dotenv_path):
 
 class AnalyticsService:
     """Service for interacting with Google Analytics 4 for blog post analytics"""
-      def __init__(self):
+    def __init__(self):
         # GA4 configuration
         self.measurement_id = os.environ.get("GA_MEASUREMENT_ID", "")  # GA4 Measurement ID (G-XXXXXXXXXX)
         

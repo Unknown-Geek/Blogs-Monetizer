@@ -19,17 +19,20 @@ class BlogService:
         self.blogger_client_id = os.environ.get("BLOGGER_CLIENT_ID", "")
         self.blogger_client_secret = os.environ.get("BLOGGER_CLIENT_SECRET", "")
         self.blogger_refresh_token = os.environ.get("BLOGGER_REFRESH_TOKEN", "")
-
+        
     def generate_blog_content(self, prompt):
         """Generate blog content using Google's Gemini API"""
-        url = "https://api.gemini.com/v1/content/generate"
-        headers = {"Authorization": f"Bearer {self.gemini_api_key}"}
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.gemini_api_key}"
+        headers = {"Content-Type": "application/json"}
         
         payload = {
-            "prompt": prompt,
-            "max_tokens": 1000,
-            "temperature": 0.7,
-            "top_p": 0.9,
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {
+                "temperature": 0.7,
+                "topK": 40,
+                "topP": 0.9,
+                "maxOutputTokens": 1000,
+            }
         }
         
         response = requests.post(url, json=payload, headers=headers)
@@ -37,17 +40,26 @@ class BlogService:
         if response.status_code != 200:
             raise Exception(f"Gemini API Error: {response.text}")
         
-        # Add basic HTML formatting
-        content = response.json()["content"]
-        formatted_content = self._format_content(content)
+        # Extract the content from the Gemini response
+        response_data = response.json()
         
-        return formatted_content
-
+        try:
+            if "candidates" in response_data and len(response_data["candidates"]) > 0:
+                content = response_data["candidates"][0]["content"]["parts"][0]["text"]
+            else:
+                raise Exception("No content returned from Gemini API")
+                
+            # Add basic HTML formatting
+            formatted_content = self._format_content(content)
+            return formatted_content
+        except Exception as e:
+            raise Exception(f"Error processing Gemini API response: {str(e)}")
+        
     def _format_content(self, content):
         """Add basic HTML formatting to the generated content"""
         paragraphs = content.split("\n\n")
         formatted_paragraphs = []
-          for p in paragraphs:
+        for p in paragraphs:
             if p.startswith("# "):
                 # This is a header
                 formatted_paragraphs.append(f"<h1>{p[2:]}</h1>")

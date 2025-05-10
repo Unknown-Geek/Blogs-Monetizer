@@ -62,7 +62,7 @@ This document provides an overview of all available API endpoints in the Monetiz
     "image_path": "path/to/generated/image.png"
   }
   ```
-- **Description**: Generates an image based on the provided prompt using AI image generation.
+- **Description**: Sources a relevant image from Unsplash based on the provided prompt.
 
 ### Publish Blog
 
