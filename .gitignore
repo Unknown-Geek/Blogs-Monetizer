@@ -44,7 +44,7 @@ secrets/
 **/secret*
 **/.secret*
 ga_env_variables.txt
-credentials/
+
 
 # Generated content
 **/images/
