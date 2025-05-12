@@ -44,10 +44,13 @@ secrets/
 **/secret*
 **/.secret*
 ga_env_variables.txt
+credentials/
 
 # Generated content
 **/images/
 **/__pycache__/
+cache
+cache/
 
 # Logs
 *.log
@@ -62,3 +65,4 @@ Thumbs.db
 *.swp
 automation_log.json
 cache/
+

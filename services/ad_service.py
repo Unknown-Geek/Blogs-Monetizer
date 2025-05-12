@@ -1,368 +1,381 @@
-"""
-Ad monetization service for blog content.
-Implements various ad formats and placement strategies.
-"""
+from typing import List, Dict
 import os
 import json
-from typing import Dict, List, Optional, Union
+import requests
 from datetime import datetime
+import random
 import re
+from .sheets_service import google_sheets_service
 
 class AdService:
-    """
-    Service for managing ad placements and monetization strategies.
-    
-    Key Features:
-    - Supports both CPM (cost per thousand impressions) and CPA (cost per action/click) models
-    - Manages different ad formats (banners, leaderboards, skyscrapers, interstitials)
-    - Analyzes content for optimal ad placement
-    - Tracks ad performance and generates revenue estimates
-    """
-    
     def __init__(self):
-        # Create log directory for ad performance tracking
-        self.log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-        os.makedirs(self.log_dir, exist_ok=True)
-        self.ad_log = os.path.join(self.log_dir, "ad_performance.json")
-        
-        # Initialize ad networks and formats
-        self.ad_networks = {
-            "google": {
-                "name": "Google AdSense",
-                "model": "hybrid",  # Supports both CPM and CPA
-                "position": "recommended"
-            },
-            "carbon": {
-                "name": "Carbon Ads",
-                "model": "cpm",
-                "position": "sidebar"
-            },
-            "direct": {
-                "name": "Direct Advertisers",
-                "model": "custom",
-                "position": "premium"
-            }
-        }
-        
-        self.ad_formats = {
-            "banner": {
-                "name": "Banner",
-                "description": "Wide rectangular ad (468x60)",
-                "nickname": "wide fella"
-            },
-            "leaderboard": {
-                "name": "Leaderboard",
-                "description": "Wide banner at top/bottom (728x90)",
-                "nickname": "wide fella"
-            },
-            "skyscraper": {
-                "name": "Skyscraper",
-                "description": "Tall, narrow ad (160x600)",
-                "nickname": "long lad"
-            },
-            "rectangle": {
-                "name": "Medium Rectangle",
-                "description": "Square ad in content (300x250)",
-                "nickname": "box buddy"
-            },
-            "interstitial": {
-                "name": "Interstitial",
-                "description": "Full-page ad between content",
-                "nickname": "page blocker"
-            }
-        }
-        
-        # Default CPM rates for estimation
-        self.default_cpm_rates = {
-            "banner": 1.50,
-            "leaderboard": 2.00,
-            "skyscraper": 1.75,
-            "rectangle": 3.50,
-            "interstitial": 8.00
-        }
+        self.affiliate_spreadsheet_url = os.environ.get("AFFILIATE_SPREADSHEET_URL")
+        self.sheets_service = google_sheets_service
 
-    def prepare_content_for_ads(self, content: str, ad_density: str = "medium") -> str:
+    def fetch_affiliate_products(self) -> List[Dict]:
         """
-        Analyze content and insert ad placement hooks based on content length and structure.
+        Fetch affiliate products from local cache first, or if not available, from the Google Spreadsheet.
+        Returns only products from the spreadsheet, never falls back to sample products.
         
-        Args:
-            content: HTML content
-            ad_density: Desired ad density ("low", "medium", "high")
-            
         Returns:
-            Content with ad placement hooks
+            List of affiliate product dictionaries
         """
-        # Count paragraphs to determine potential ad placements
-        paragraphs = re.findall(r'<p>.*?</p>', content, re.DOTALL)
-        word_count = sum(len(re.findall(r'\w+', p)) for p in paragraphs)
+        # First try to load from local cache
+        cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache")
+        cache_file = os.path.join(cache_dir, "affiliate_products.json")
         
-        # Determine ad count based on density and word count
-        density_factors = {"low": 0.5, "medium": 1.0, "high": 1.5}
-        factor = density_factors.get(ad_density, 1.0)
+        if os.path.exists(cache_file):
+            try:
+                print(f"Loading affiliate products from local cache file: {cache_file}")
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
+                    
+                if isinstance(cached_data, dict) and 'products' in cached_data and cached_data['products']:
+                    print(f"Successfully loaded {len(cached_data['products'])} products from cache")
+                    return cached_data['products']
+            except Exception as e:
+                print(f"Error loading from cache: {str(e)}")
         
-        # Base formula: 1 ad per 300 words with the density factor applied
-        ad_count = max(1, int((word_count / 300) * factor))
+        # If cache loading failed, fall back to spreadsheet
+        spreadsheet_url_to_use = self.affiliate_spreadsheet_url
+        if not spreadsheet_url_to_use:
+            print("No AFFILIATE_SPREADSHEET_URL found in environment. No affiliate products will be used.")
+            return []  # Return empty list if no spreadsheet URL
+        else:
+            print(f"Fetching affiliate products from spreadsheet: {spreadsheet_url_to_use}")
+            try:
+                # Attempt to fetch products from the Google Spreadsheet
+                products = self.sheets_service.fetch_affiliate_products(spreadsheet_url_to_use)
+                if not products:
+                    print("Failed to fetch products from spreadsheet or spreadsheet is empty.")
+                    return []  # Return empty list if fetch fails or no products
+            except Exception as e:
+                print(f"Error fetching affiliate products: {str(e)}")
+                return []  # Return empty list on error
         
-        # Limit ads based on Google's policy (max 1 ad per X words)
-        max_allowed = max(1, word_count // 250)
-        ad_count = min(ad_count, max_allowed)
-        
-        # Calculate optimal positions
-        positions = []
-        if len(paragraphs) > 3:
-            # Place ads evenly throughout the content
-            interval = len(paragraphs) // (ad_count + 1)
-            positions = [interval * i for i in range(1, ad_count + 1)]
-            
-            # Ensure ads aren't too close together
-            min_distance = 2
-            filtered_positions = []
-            last_pos = -min_distance - 1
-            for pos in positions:
-                if pos - last_pos > min_distance:
-                    filtered_positions.append(pos)
-                    last_pos = pos
-            positions = filtered_positions
-        
-        # Create HTML with ad placement hooks
-        parts = []
-        for i, p in enumerate(paragraphs):
-            parts.append(p)
-            if i in positions:
-                ad_format = self._choose_optimal_ad_format(i, len(paragraphs))
-                parts.append(f'<!-- AD_PLACEMENT: {ad_format} -->')
-        
-        # Always add a rectangle ad after the first few paragraphs if there's enough content
-        if len(paragraphs) >= 5 and 2 not in positions:
-            rectangle_hook = '<!-- AD_PLACEMENT: rectangle -->'
-            parts.insert(3, rectangle_hook)
-            
-        # Consider a leaderboard at the end for longer content
-        if word_count > 800 and (len(paragraphs) - 1) not in positions:
-            parts.append('<!-- AD_PLACEMENT: leaderboard -->')
-        
-        # Log the ad placement plan
-        self._log_ad_placement({
-            "content_stats": {
-                "word_count": word_count,
-                "paragraph_count": len(paragraphs)
-            },
-            "ad_placement": {
-                "density": ad_density,
-                "ad_count": len(positions) + (1 if word_count > 800 else 0) + (1 if len(paragraphs) >= 5 else 0),
-                "positions": positions
-            },
+        # Log affiliate product fetch
+        self._log_affiliate_products({
+            "source": "local cache" if os.path.exists(cache_file) else (spreadsheet_url_to_use or "no spreadsheet URL"),
+            "product_count": len(products),
             "timestamp": datetime.now().isoformat()
         })
         
-        return "".join(parts)
-    
-    def render_ad_code(self, ad_format: str, network: str = "google") -> str:
-        """
-        Generate the HTML code for an ad based on format and network.
-        
-        Args:
-            ad_format: Type of ad ("banner", "leaderboard", etc.)
-            network: Ad network to use
-            
-        Returns:
-            HTML code for the ad
-        """        # NOTE: These are placeholders - in a real implementation,
-        # you'd use actual ad codes from the networks
-        if network == "google":
-            return f'''
-            <div class="ad-container {ad_format}">
-                <!-- Google AdSense {self.ad_formats.get(ad_format, {}).get('name', 'Ad')} -->
-                <ins class="adsbygoogle"
-                     style="display:block"
-                     data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-                     data-ad-slot="XXXXXXXXXX"
-                     data-ad-format="{ad_format}"></ins>
-                <script>(adsbygoogle = window.adsbygoogle || []).push({{}})</script>
-                <!-- Fallback content in case ads don't load -->
-                <div class="ad-fallback" style="border: 1px dashed #ccc; padding: 10px; margin-top: 5px; font-size: 12px; color: #666;">
-                    Advertisement: {self.ad_formats.get(ad_format, {}).get('name', 'Ad')} ({ad_format})
-                </div>
-            </div>
-            '''
-        elif network == "carbon":
-            return f'''
-            <div class="ad-container carbon {ad_format}">
-                <script async type="text/javascript" src="//cdn.carbonads.com/carbon.js?serve=XXXXXXXX&placement=XXXXX" id="_carbonads_js"></script>
-                <!-- Fallback content in case ads don't load -->                <div class="ad-fallback" style="border: 1px dashed #ccc; padding: 10px; margin-top: 5px; font-size: 12px; color: #666;">
-                    Advertisement: Carbon {self.ad_formats.get(ad_format, {}).get('name', 'Ad')}
-                </div>
-            </div>
-            '''
-        else:  # Direct or other networks
-            return f'''
-            <div class="ad-container {ad_format} custom-ad">
-                <!-- Custom {self.ad_formats.get(ad_format, {}).get('name', 'Advertisement')} -->
-                <div class="custom-ad-content">
-                    Your Ad Here - Contact us for advertising options
-                </div>
-            </div>
-            '''
-    
-    def insert_ads_into_content(self, content: str, network: str = "google") -> str:
-        """
-        Replace ad placement hooks with actual ad code.
-        
-        Args:
-            content: HTML content with ad placement hooks
-            network: Ad network to use
-            
-        Returns:
-            Content with actual ads inserted
-        """
-        for ad_format in self.ad_formats:
-            placeholder = f'<!-- AD_PLACEMENT: {ad_format} -->'
-            ad_code = self.render_ad_code(ad_format, network)
-            content = content.replace(placeholder, ad_code)
-        return content
-    
-    def estimate_revenue(self, content: str, views: int = 1000) -> Dict:
-        """
-        Estimate potential ad revenue based on content and expected views.
-        
-        Args:
-            content: HTML content to analyze
-            views: Expected number of views
-            
-        Returns:
-            Dict with revenue estimates
-        """
-        # Count ad placements by type
-        ad_counts = {}
-        for ad_format in self.ad_formats:
-            count = content.count(f'<!-- AD_PLACEMENT: {ad_format} -->')
-            ad_counts[ad_format] = count
-        
-        # Calculate CPM-based revenue estimates
-        cpm_revenue = 0
-        for ad_format, count in ad_counts.items():
-            rate = self.default_cpm_rates.get(ad_format, 1.0)
-            # CPM is per 1000 impressions
-            format_revenue = (views / 1000) * rate * count
-            cpm_revenue += format_revenue
-        
-        # Estimate CPC (Cost Per Click) revenue
-        # Assuming 0.5% CTR (Click Through Rate)
-        ctr = 0.005
-        avg_cpc = 0.50  # Average cost per click in dollars
-        cpc_revenue = views * ctr * avg_cpc
-        
-        return {
-            "views": views,
-            "ad_placements": ad_counts,
-            "estimated_revenue": {
-                "cpm_model": round(cpm_revenue, 2),
-                "cpc_model": round(cpc_revenue, 2),
-                "total": round(cpm_revenue + cpc_revenue, 2)
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-    
+        return products
+
+    def _log_affiliate_products(self, data: Dict):
+        # Placeholder implementation
+        pass
+
     def generate_ad_strategy(self, content_info: Dict) -> Dict:
-        """
-        Generate a recommended ad strategy based on content information.
-        
-        Args:
-            content_info: Dict with content metadata (topic, length, audience, etc.)
-            
-        Returns:
-            Dict with ad strategy recommendations
-        """
-        topic = content_info.get("topic", "")
-        word_count = content_info.get("word_count", 0)
-        audience = content_info.get("audience", "general")
-        
-        # Default strategy
-        strategy = {
+        # Placeholder implementation
+        return {
             "density": "medium",
             "primary_network": "google",
-            "secondary_network": None,
-            "recommended_formats": ["rectangle", "leaderboard"],
-            "placement_strategy": "standard",
-            "ethical_considerations": []
+            "ad_count": 3,
+            "strategy_name": "medium density google ads"
         }
-        
-        # Adjust based on content length
-        if word_count < 500:
-            strategy["density"] = "low"
-            strategy["recommended_formats"] = ["rectangle"]
-        elif word_count > 1500:
-            strategy["density"] = "medium"  # More content but keep reasonable
-            strategy["recommended_formats"].append("skyscraper")
-            strategy["secondary_network"] = "direct"  # Try direct advertisers for longer content
-            
-        # Add ethical considerations
-        if "health" in topic.lower() or "medical" in topic.lower():
-            strategy["ethical_considerations"].append(
-                "Health-related content should avoid misleading ads or products with unverified claims."
-            )
-            
-        if "children" in audience.lower() or "kids" in audience.lower():
-            strategy["ethical_considerations"].append(
-                "Content for children should comply with COPPA and avoid behavior-based targeting."
-            )
-            strategy["density"] = "low"  # Reduce ad density for children's content
-        
-        # Log the strategy generation
-        self._log_strategy(strategy, content_info)
-        
-        return strategy
-    
-    def _choose_optimal_ad_format(self, position: int, total_paragraphs: int) -> str:
-        """Choose the best ad format based on position within content"""
-        position_ratio = position / total_paragraphs
-        
-        if position <= 2:
-            return "rectangle"  # Early in content
-        elif position_ratio >= 0.8:
-            return "leaderboard"  # Near the end
-        elif 0.3 <= position_ratio <= 0.7:
-            return "skyscraper" if position % 2 == 0 else "rectangle"  # Middle of content
-        else:
-            return "banner"  # Default
-    
-    def _log_ad_placement(self, placement_data: Dict) -> None:
-        """Log ad placement information"""
-        self._append_to_log("ad_placements", placement_data)
-    
-    def _log_strategy(self, strategy: Dict, content_info: Dict) -> None:
-        """Log ad strategy generation"""
-        log_entry = {
-            "strategy": strategy,
-            "content_info": content_info,
-            "timestamp": datetime.now().isoformat()
-        }
-        self._append_to_log("ad_strategies", log_entry)
-    
-    def _append_to_log(self, log_type: str, data: Dict) -> None:
-        """Append data to the specified log file"""
-        log_path = os.path.join(self.log_dir, f"{log_type}.json")
-        
-        try:
-            # Load existing logs
-            logs = []
-            if os.path.exists(log_path):
-                with open(log_path, 'r') as f:
-                    logs = json.load(f)
-            
-            # Ensure it's a list
-            if not isinstance(logs, list):
-                logs = []
-                
-            # Add new log entry
-            logs.append(data)
-            
-            # Save logs
-            with open(log_path, 'w') as f:
-                json.dump(logs, f, indent=2)
-                
-        except Exception as e:
-            print(f"Error logging to {log_type}: {str(e)}")
 
-# Singleton instance
+    def prepare_content_for_ads(self, content: str, ad_density: str) -> str:
+        # Placeholder implementation
+        return content # Or add ad placeholders like <!-- AD_PLACEMENT -->
+        
+    def insert_ads_into_content(self, content: str, network: str) -> str:
+        # Placeholder implementation - replace placeholders with actual ad code
+        return content.replace("<!-- AD_PLACEMENT -->", f"<div>Ad from {network}</div>")
+        
+    def insert_affiliate_ads(self, content: str, affiliate_products: List[Dict], max_affiliate_ads: int, context: str = None) -> str:
+        # If no products, return content unchanged (no ads)
+        if not affiliate_products:
+            return content
+
+        product_html_parts = []
+        inserted_count = 0
+
+        # Extract context from the content if not provided
+        if context is None:
+            # Try to get the first 100 words as context
+            words = content.split()[:100]
+            context = " ".join(words)
+
+        # --- Relevance scoring ---
+        def score_product(product):
+            score = 0
+            # Score by category match
+            content_lower = content.lower()
+            if 'category' in product and product['category']:
+                for cat in str(product['category']).split(','):
+                    if cat.strip().lower() in content_lower:
+                        score += 3
+            # Score by product name/description keyword match
+            for field in ['product_name', 'description']:
+                if field in product and product[field]:
+                    for word in str(product[field]).split():
+                        if len(word) > 3 and word.lower() in content_lower:
+                            score += 1
+            return score
+
+        # Score all products
+        scored_products = [(score_product(p), p) for p in affiliate_products]
+        # Sort by score descending, then shuffle those with same score
+        scored_products.sort(key=lambda x: x[0], reverse=True)
+        # Group by score
+        grouped = {}
+        for score, prod in scored_products:
+            grouped.setdefault(score, []).append(prod)
+        # Flatten, shuffling within each score group
+        sorted_products = []
+        for score in sorted(grouped.keys(), reverse=True):
+            group = grouped[score]
+            random.shuffle(group)
+            sorted_products.extend(group)
+
+        # Only use top N products
+        for product in sorted_products:
+            if inserted_count >= max_affiliate_ads:
+                break
+            product_url = product.get("url", "#")
+            if not product_url or product_url == "#":
+                continue
+            product_name = product.get("product_name", "Shop Now")
+            if product_name.startswith("Product "):
+                better_name = self._extract_product_name_from_url(product_url)
+                if better_name:
+                    product_name = better_name
+            image_url = product.get("image_url", "")
+            if image_url and image_url.strip() and not (image_url.startswith('http://') or image_url.startswith('https://')):
+                if image_url.startswith('//'):
+                    image_url = 'https:' + image_url
+                else:
+                    image_url = 'https://' + image_url
+            catchphrase = self._generate_catchphrase(product_name, context)
+            # Add a short description under the catchphrase
+            description = product.get('description', '').strip()
+            if not description:
+                # Fallback: use a generic description if missing
+                description = f"Discover more about {product_name} and why it's popular with our readers."
+            image_html = "<div style='width: 100%; height: 200px; background-color: #f5f5f5; display: flex; align-items: center; justify-content: center; border-radius: 4px;'>No Image</div>"
+            if image_url and image_url.strip():
+                image_html = f"<img src='{image_url}' alt='{product_name}' style='max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 4px;'>"
+            html = f"""
+            <div class=\"affiliate-product\" style=\"display: flex; margin: 20px 0; padding: 15px; border: 1px solid #eee; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); background-color: #fff; overflow: hidden; max-width: 100%;\">
+                <!-- Left side: Product Image -->
+                <div class=\"product-image\" style=\"flex: 0 0 40%; padding-right: 15px; height: 200px; display: flex; align-items: center; justify-content: center;\">
+                    {image_html}
+                </div>
+                <!-- Right side: Product Info -->
+                <div class=\"product-info\" style=\"flex: 1; display: flex; flex-direction: column; justify-content: space-between;\">
+                    <div class=\"product-catchphrase\" style=\"font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #333;\">{catchphrase}</div>
+                    <div class=\"product-description\" style=\"font-size: 15px; color: #555; margin-bottom: 15px;\">{description}</div>
+                    <a href=\"{product_url}\" target=\"_blank\" rel=\"noopener\" class=\"shop-now-button\" style=\"display: inline-block; background-color: #ff9900; color: white; padding: 10px 20px; text-align: center; text-decoration: none; font-weight: bold; border-radius: 4px; align-self: flex-start; transition: background-color 0.3s;\">Shop Now</a>
+                </div>
+            </div>
+            """
+            product_html_parts.append(html)
+            inserted_count += 1
+
+        if product_html_parts:
+            responsive_css = """
+            <style>
+            .affiliate-section {
+                margin-top: 40px;
+                padding: 15px;
+                background-color: #f9f9f9;
+                border-radius: 8px;
+                line-height: 1.5;
+            }
+            .affiliate-section h2 {
+                text-align: center;
+                margin-bottom: 20px;
+                color: #333;
+                font-size: 24px;
+                line-height: 1.5;
+            }            .affiliate-product {
+                display: flex;
+                margin: 20px 0;
+                padding: 15px;
+                border: 1px solid #eee;
+                border-radius: 8px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                background-color: #fff;
+                overflow: hidden;
+                max-width: 100%;
+            }
+            .product-image {
+                flex: 0 0 40%; 
+                padding-right: 15px;
+                height: 200px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .product-info {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            @media screen and (max-width: 600px) {
+                .affiliate-product {
+                    flex-direction: column;
+                }
+                .product-image {
+                    padding-right: 0 !important;
+                    padding-bottom: 15px;
+                    max-width: 100% !important;
+                    height: 180px !important;
+                }
+            }            </style>
+            """
+            return content + "\n" + responsive_css + "<div class='affiliate-section'><h2>Recommended Products</h2>\n" + "\n".join(product_html_parts) + "</div>"
+        return content
+    
+    def estimate_revenue(self, content: str, views: int) -> Dict:
+        # Placeholder implementation
+        return {"estimated_revenue": {"total": 5.0}}
+        
+    def _extract_product_name_from_url(self, product_url: str) -> str:
+        """Extract a more descriptive product name from a URL, especially for Amazon products"""
+        if "amazon" in product_url.lower():
+            # For Amazon links, get product info from the URL (dp/PRODUCTID)
+            import re
+            
+            # If the URL contains product details in a readable format, extract directly
+            # Pattern for OnePlus and similar device listings (first try)
+            product_pattern = re.search(r'/([^/]+)/dp/', product_url)
+            if product_pattern:
+                product_text = product_pattern.group(1)
+                if '-' in product_text and len(product_text) > 5:
+                    better_name = product_text.replace('-', ' ').title()
+                    # Clean up the name
+                    better_name = re.sub(r'B[0-9A-Z]{9}', '', better_name).strip()
+                    better_name = re.sub(r'\bFor\s(Amazon|iPhone|iPad|Samsung|Android)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    better_name = re.sub(r'\b(Pack\sOf\s\d+|Set\sOf\s\d+|With\s\d+|Bundle)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    
+                    if len(better_name) > 3:
+                        print(f"Extracted better product name from URL pattern 1: {better_name}")
+                        return better_name
+            
+            # If the URL contains product details in a readable format, extract directly
+            # Pattern for OnePlus and similar device listings (first try)
+            product_pattern = re.search(r'/([^/]+)/dp/', product_url)
+            if product_pattern:
+                product_text = product_pattern.group(1)
+                if '-' in product_text and len(product_text) > 5:
+                    better_name = product_text.replace('-', ' ').title()
+                    # Clean up the name
+                    better_name = re.sub(r'B[0-9A-Z]{9}', '', better_name).strip()
+                    better_name = re.sub(r'\bFor\s(Amazon|iPhone|iPad|Samsung|Android)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    better_name = re.sub(r'\b(Pack\sOf\s\d+|Set\sOf\s\d+|With\s\d+|Bundle)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    
+                    if len(better_name) > 3:
+                        print(f"Extracted better product name from URL pattern 1: {better_name}")
+                        return better_name
+            
+            # Try to extract product name from URL parts (fallback method)
+            url_parts = product_url.split('/')
+            
+            # Look for parts that might contain the product name
+            for part in url_parts:
+                if part.startswith('dp') or part.startswith('gp') or len(part) < 5:
+                    continue
+                if '-' in part and not part.startswith('ref=') and not part.startswith('pf_rd'):
+                    better_name = part.replace('-', ' ').title()
+                    # Clean up the name (remove product IDs, colors, sizes)
+                    better_name = re.sub(r'B[0-9A-Z]{9}', '', better_name).strip()
+                    
+                    # Further clean up common suffixes and prefixes in Amazon product names
+                    better_name = re.sub(r'\bFor\s(Amazon|iPhone|iPad|Samsung|Android)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    better_name = re.sub(r'\b(Pack\sOf\s\d+|Set\sOf\s\d+|With\s\d+|Bundle)\b', '', better_name, flags=re.IGNORECASE).strip()
+                    
+                    if len(better_name) > 3:
+                        print(f"Extracted better product name from URL pattern 2: {better_name}")
+                        return better_name
+                        
+        # Default fallback
+        return "Featured Product"
+            
+    def _generate_catchphrase(self, product_name: str, context: str = None) -> str:
+        """
+        Generate a compelling catchphrase for the affiliate product.
+        
+        Args:
+            product_name: The name of the product
+            context: Optional context about the blog content for more relevant phrases
+            
+        Returns:
+            A catchphrase string
+        """
+        # Simple catchphrase templates
+        catchphrases = [
+            f"Check out this amazing {product_name}!",
+            f"Upgrade your life with this {product_name}!",
+            f"The {product_name} everyone's talking about!",
+            f"Love this {product_name} - you will too!",
+            f"Top rated {product_name} - see why!",
+            f"Discover the {product_name} difference!",
+            f"This {product_name} changed everything for me!",
+            f"Don't miss this incredible {product_name}!",
+        ]
+        
+        # For tech products
+        tech_terms = ["phone", "laptop", "computer", "tablet", "ipad", "iphone", "android", "samsung", 
+                     "oneplus", "pixel", "macbook", "headphones", "earbuds", "smartwatch", "smart watch",
+                     "tech", "gadget", "gaming", "camera", "speaker", "bluetooth"]
+                     
+        if any(term in product_name.lower() for term in tech_terms):
+            tech_phrases = [
+                f"Level up your tech with this {product_name}!",
+                f"The {product_name} - smart tech for modern life!",
+                f"Tech enthusiasts love this {product_name}!",
+                f"Power up with the latest {product_name}!",
+                f"Cutting-edge {product_name} - see the difference!",
+            ]
+            catchphrases.extend(tech_phrases)
+            
+        # If we have context, try to make it more relevant (simple implementation)
+        if context:
+            context = context.lower()
+            if "health" in context or "fitness" in context:
+                if any(term in product_name.lower() for term in ["vitamin", "protein", "supplement", "workout"]):
+                    return f"Boost your health with this premium {product_name}!"
+            elif "tech" in context or "technology" in context:
+                if any(term in product_name.lower() for term in tech_terms):
+                    return f"Stay on the cutting edge with this {product_name}!"
+            elif "social media" in context or "fake news" in context:
+                if any(term in product_name.lower() for term in tech_terms):
+                    return f"Stay connected responsibly with this {product_name}!"
+        
+        # Select a random catchphrase
+        import random
+        return random.choice(catchphrases)
+
+    def _generate_clickbait_phrase_gemini(self, product_name: str, context: str = None) -> str:
+        """
+        Use Gemini API to generate a clickbait phrase for the given product.
+        """
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            return f"Don't miss out on {product_name}!"
+
+        prompt = f"Write a catchy, clickbait ad phrase for a product called '{product_name}'."
+        if context:
+            prompt += f" The ad is for a blog about: {context}"
+
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+        headers = {"Content-Type": "application/json"}
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}]
+        }
+        params = {"key": api_key}
+
+        try:
+            response = requests.post(url, headers=headers, params=params, json=payload, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            # Extract the generated phrase from Gemini's response
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception as e:
+            print(f"Gemini API error: {e}")
+            return f"Check out this amazing {product_name}!"
+
 ad_service = AdService()

@@ -15,12 +15,12 @@ load_dotenv(dotenv_path)
 
 # Import services
 try:
-    from services import blog_service, seo_service, image_service, social_service, analytics_service
+    from services import blog_service, seo_service, image_service, social_service, analytics_service, ad_service
     from services.trend_service import trend_service
     from services.automation_service import automation_service
 except ImportError:
     # Alternative import if running from a different directory
-    from backend.services import blog_service, seo_service, image_service, social_service, analytics_service
+    from backend.services import blog_service, seo_service, image_service, social_service, analytics_service, ad_service
     from backend.services.trend_service import trend_service
     from backend.services.automation_service import automation_service
 
@@ -74,6 +74,11 @@ class ConfigUpdate(BaseModel):
     automation: Optional[Dict[str, Any]] = None
     seo: Optional[Dict[str, Any]] = None
     image: Optional[Dict[str, Any]] = None
+
+class AffiliateRequest(BaseModel):
+    content: str
+    max_affiliate_ads: int = 2
+    category: Optional[str] = None
 
 # Root endpoint
 @app.get("/")
@@ -280,6 +285,77 @@ async def get_analytics():
             "traffic_sources": traffic_sources,
             "posts_count": posts_count,
             "last_post": last_post_time
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/affiliate-products")
+async def get_affiliate_products(category: Optional[str] = None, limit: Optional[int] = None):
+    """Fetch affiliate products with optional filtering"""
+    try:
+        # Fetch all affiliate products
+        affiliate_products = ad_service.fetch_affiliate_products()
+        
+        # Filter by category if provided
+        if category:
+            affiliate_products = [
+                product for product in affiliate_products 
+                if category.lower() in product.get("category", "").lower()
+            ]
+            
+        # Get total count before limiting
+        total_count = len(affiliate_products)
+            
+        # Limit results if requested
+        if limit and limit > 0:
+            affiliate_products = affiliate_products[:limit]
+        
+        return {
+            "products": affiliate_products,
+            "total": total_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/affiliate-products")
+async def get_affiliate_products():
+    """Get affiliate products from the configured Google Sheet"""
+    try:
+        from services.ad_service import ad_service
+        affiliate_products = ad_service.fetch_affiliate_products()
+        return {"products": affiliate_products, "count": len(affiliate_products)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/add-affiliate-ads")
+async def add_affiliate_ads(request: AffiliateRequest):
+    """Add affiliate product ads to blog content based on relevance"""
+    try:
+        content = request.content
+        max_ads = request.max_affiliate_ads
+        category_filter = request.category
+        
+        # Fetch affiliate products
+        affiliate_products = ad_service.fetch_affiliate_products()
+        
+        # Filter products by category if provided
+        if category_filter:
+            affiliate_products = [
+                product for product in affiliate_products 
+                if category_filter.lower() in product.get("category", "").lower()
+            ]
+            
+        # Insert affiliate ads into content
+        monetized_content = ad_service.insert_affiliate_ads(
+            content, 
+            affiliate_products, 
+            max_affiliate_ads=max_ads
+        )
+        
+        return {
+            "content": monetized_content, 
+            "products_used": min(max_ads, len(affiliate_products)),
+            "total_products_available": len(affiliate_products)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

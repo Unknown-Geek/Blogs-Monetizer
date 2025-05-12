@@ -6,7 +6,9 @@ import argparse
 import sys
 import shutil
 import time
+import json
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +22,9 @@ from services.ad_service import ad_service
 
 # Initialize social service
 social_service = SocialService()
+
+# Load environment variables
+load_dotenv()
 
 def get_trending_topic() -> Dict[str, Any]:
     """Get a trending topic from news sources"""
@@ -43,7 +48,7 @@ def analyze_seo(content: str) -> Dict[str, Any]:
     return seo_results
 
 def monetize_content(content: str) -> str:
-    """Add ad placements to the blog content"""
+    """Add ad placements and affiliate products to the blog content"""
     content_info = {
         "word_count": len(content.split()),
         "topic": extract_blog_title(content),
@@ -51,22 +56,48 @@ def monetize_content(content: str) -> str:
     }
     ad_strategy = ad_service.generate_ad_strategy(content_info)
     
-    # Add required fields for other functions
-    ad_strategy["ad_count"] = 3  # Default number of ads
-    ad_strategy["strategy_name"] = f"{ad_strategy['density']} density {ad_strategy['primary_network']} ads"
+    print(f"Ad strategy generated: {ad_strategy.get('strategy_name', 'N/A')}")
     
-    print(f"Ad strategy generated: {ad_strategy['strategy_name']}")
+    prepared_content = ad_service.prepare_content_for_ads(content, ad_density=ad_strategy.get('density', 'medium'))
+    monetized_content = ad_service.insert_ads_into_content(prepared_content, network=ad_strategy.get('primary_network', 'google'))
     
-    # First prepare the content with appropriate markup
-    prepared_content = ad_service.prepare_content_for_ads(content, ad_density=ad_strategy['density'])
+    print("Fetching affiliate products...")
+    affiliate_products = ad_service.fetch_affiliate_products()
     
-    # Then insert the actual ads
-    monetized_content = ad_service.insert_ads_into_content(prepared_content, network=ad_strategy['primary_network'])
+    if not affiliate_products:
+        print("No affiliate products fetched. Skipping affiliate ads.")
+        return monetized_content
+        
+    print(f"Fetched {len(affiliate_products)} affiliate products.")
     
-    print(f"Prepared content with {ad_strategy['ad_count']} ad placements")
-      # Show estimated earnings
+    # Enhance affiliate products with images
+    enriched_affiliate_products = []
+    for product in affiliate_products:
+        product_url = product.get("url")
+        product_name = product.get("product_name", "Affiliate Product")
+        if product_url:
+            print(f"Attempting to fetch image for {product_name} from {product_url}")
+            image_path = image_service.fetch_image_from_url(product_url, product_name)
+            if image_path:
+                product["image_path"] = image_path 
+                print(f"Successfully fetched image for {product_name}: {image_path}")
+            else:
+                product["image_path"] = None
+                print(f"Failed to fetch image for {product_name}")
+        else:
+            product["image_path"] = None
+        enriched_affiliate_products.append(product)
+
+    monetized_content = ad_service.insert_affiliate_ads(
+        monetized_content, 
+        enriched_affiliate_products,
+        max_affiliate_ads=3
+    )
+    
+    print(f"Added affiliate product links (with images if available).")
+    
     estimated_revenue = ad_service.estimate_revenue(monetized_content, 10000)
-    print(f"Estimated monthly revenue (10K views): ${estimated_revenue}")
+    print(f"Estimated monthly revenue (10K views): ${estimated_revenue.get('estimated_revenue', {}).get('total', 0.0)}")
     
     return monetized_content
 
@@ -155,16 +186,30 @@ def publish_blog(title: str, content: str, image_path: str, tags: List[str]) -> 
     return result
 
 def clear_images_directory():
-    """Clean up the images directory"""
+    """Clean up the images directory, including product images"""
     image_dir = image_service.output_dir
+    product_dir = image_service.product_image_dir
+    
     try:
-        files = []
+        # Clear main images directory
+        main_files_count = 0
         for f in os.listdir(image_dir):
-            if f.endswith(".jpg") or f.endswith(".png"):
-                file_path = os.path.join(image_dir, f)
+            file_path = os.path.join(image_dir, f)
+            if os.path.isfile(file_path):
                 os.remove(file_path)
-                files.append(f)
-        print(f"Cleared {len(files)} files from images directory: {image_dir}")
+                main_files_count += 1
+        
+        # Clear products subdirectory
+        product_files_count = 0
+        if os.path.exists(product_dir):
+            for f in os.listdir(product_dir):
+                file_path = os.path.join(product_dir, f)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+                    product_files_count += 1
+        
+        print(f"Cleared {main_files_count} files from images directory: {image_dir}")
+        print(f"Cleared {product_files_count} files from products directory: {product_dir}")
     except Exception as e:
         print(f"Error clearing images directory: {str(e)}")
 

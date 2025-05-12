@@ -23,48 +23,55 @@ class BlogService:
         self.blogger_client_secret = os.environ.get("BLOGGER_CLIENT_SECRET", "")
         self.blogger_refresh_token = os.environ.get("BLOGGER_REFRESH_TOKEN", "")
         
-    def generate_blog_content(self, prompt: str, max_tokens: int = 1500) -> str:
-        """Generate blog content using Google's Gemini API with enhanced prompt engineering"""
-        # Enhance the prompt for better blog formatting
-        enhanced_prompt = self._enhance_prompt(prompt)
-        
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.gemini_api_key}"
-        headers = {"Content-Type": "application/json"}
-        
-        # Configure generation parameters for better quality
-        payload = {
-            "contents": [{"parts": [{"text": enhanced_prompt}]}],
-            "generationConfig": {
-                "temperature": 0.7,
-                "topK": 40,
-                "topP": 0.9,
-                "maxOutputTokens": max_tokens,
+    def generate_blog_content(self, prompt: str, max_tokens: int = 1500, max_retries: int = 3) -> str:
+        """Generate blog content using Google's Gemini API with enhanced prompt engineering. Retries if people-related topic is detected."""
+        retries = 0
+        while retries < max_retries:
+            if self._is_people_related(prompt):
+                print("People-related topic detected. Retrying with a new topic...\n")
+                retries += 1
+                if retries >= max_retries:
+                    raise ValueError("People-related topics are not allowed for blog generation after multiple attempts.")
+                continue
+            print("Enhancing prompt for better blog formatting...\n")
+            enhanced_prompt = self._enhance_prompt(prompt)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={self.gemini_api_key}"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "contents": [{"parts": [{"text": enhanced_prompt}]}],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "topK": 40,
+                    "topP": 0.9,
+                    "maxOutputTokens": max_tokens,
+                }
             }
-        }
-        
-        try:
-            response = requests.post(url, json=payload, headers=headers)
-            
-            if response.status_code != 200:
-                raise Exception(f"Gemini API Error: {response.text}")
-            
-            # Extract the content from the Gemini response
-            response_data = response.json()
-            
-            if "candidates" in response_data and len(response_data["candidates"]) > 0:
-                content = response_data["candidates"][0]["content"]["parts"][0]["text"]
-            else:
-                raise Exception("No content returned from Gemini API")
-                
-            # Preprocess content to handle edge cases
-            content = self._enhance_content_preprocessing(content)
-                
-            # Add enhanced HTML formatting
-            formatted_content = self._format_content(content)
-            return formatted_content
-            
-        except Exception as e:
-            raise Exception(f"Error generating blog content: {str(e)}")
+            try:
+                print("Requesting content from Gemini API...\n")
+                response = requests.post(url, json=payload, headers=headers)
+                if response.status_code != 200:
+                    raise Exception(f"Gemini API Error: {response.text}")
+                response_data = response.json()
+                if "candidates" in response_data and len(response_data["candidates"]) > 0:
+                    content = response_data["candidates"][0]["content"]["parts"][0]["text"]
+                else:
+                    raise Exception("No content returned from Gemini API")
+                print("Preprocessing content to handle edge cases...\n")
+                content = self._enhance_content_preprocessing(content)
+                if self._is_people_related(content):
+                    print("Generated content is people-related. Retrying...\n")
+                    retries += 1
+                    if retries >= max_retries:
+                        raise ValueError("People-related topics are not allowed for blog generation after multiple attempts.")
+                    continue
+                print("Formatting content as HTML...\n")
+                formatted_content = self._format_content(content)
+                print("Blog content generation complete.\n")
+                return formatted_content
+            except Exception as e:
+                print(f"Error generating blog content: {str(e)}\n")
+                raise Exception(f"Error generating blog content: {str(e)}")
+        raise ValueError("Failed to generate non-people-related blog content after multiple retries.")
     
     def _enhance_prompt(self, prompt: str) -> str:
         """Enhance the blog prompt for better structure and SEO"""
@@ -90,6 +97,49 @@ Make sure the content is original, informative, and engaging.
 """
         return structured_prompt
         
+    def integrate_affiliate_products(self, content: str, topic: str) -> str:
+        """
+        Integrate affiliate products ads into blog content based on topic relevance.
+        
+        Args:
+            content: The HTML blog content
+            topic: The blog topic/subject
+            
+        Returns:
+            Content with affiliate product ads integrated
+        """
+        try:
+            from services.ad_service import ad_service
+            
+            # Fetch affiliate products from spreadsheet or cache
+            affiliate_products = ad_service.fetch_affiliate_products()
+            
+            if not affiliate_products:
+                print("No affiliate products found. Skipping affiliate integration.")
+                return content
+                
+            # Determine how many affiliate ads to insert based on content length
+            # Roughly 1 ad per 400 words, with a max of 3
+            word_count = len(re.findall(r'\w+', content))
+            max_affiliate_ads = min(3, max(1, word_count // 400))
+            
+            print(f"Integrating up to {max_affiliate_ads} affiliate ads based on content length ({word_count} words)")
+            
+            # Insert the affiliate ads
+            enhanced_content = ad_service.insert_affiliate_ads(
+                content, 
+                affiliate_products,
+                max_affiliate_ads=max_affiliate_ads,
+                context=topic if topic else None
+            )
+            
+            return enhanced_content
+            
+        except Exception as e:
+            print(f"Error integrating affiliate products: {str(e)}")
+            # Return original content if there's an error
+            return content
+
     def _format_content(self, content: str) -> str:
         """Add enhanced HTML formatting to the generated content with better Markdown parsing"""
         paragraphs = content.split("\n\n")
@@ -314,11 +364,24 @@ Make sure the content is original, informative, and engaging.
                 color: #777;
                 font-size: 14px;
             }
+            h1 {
+                line-height: 1.5;
+                margin-bottom: 32px;
+            }
             </style>
             """
             
             # Add styles to the post content
             post_content = ad_styles + post_content
+            
+            # Insert affiliate product ads based on content relevance
+            try:
+                # Extract a topic from the title for better matching
+                topic = title.lower()
+                # Integrate affiliate product ads
+                post_content = self.integrate_affiliate_products(post_content, topic)
+            except Exception as e:
+                print(f"Warning: Could not integrate affiliate products: {str(e)}")
             
             # Convert ad placement hooks to actual ad code
             try:
@@ -347,6 +410,10 @@ Make sure the content is original, informative, and engaging.
             
             # Add metadata to the result
             result["success"] = True
+            
+            # Clear images directory after successful publishing
+            self.clear_images_directory()
+            
             return result
             
         except Exception as e:
@@ -435,6 +502,81 @@ Make sure the content is original, informative, and engaging.
                 
         except Exception as e:
             print(f"Error updating post: {str(e)}")
+            return False
+
+    def clear_images_directory(self):
+        """Clear the images directory after successful blog publishing"""
+        try:
+            # Get image directory path
+            image_dir = os.environ.get("IMAGE_OUTPUT_DIR", "./images")
+            
+            # Make sure the directory exists
+            if not os.path.exists(image_dir):
+                print("Images directory doesn't exist.")
+                return False
+                
+            # Count files before deletion
+            file_count = 0
+            
+            # Remove all files in the images directory (but keep the directory itself)
+            # Also, keep the products subdirectory
+            for item in os.listdir(image_dir):
+                item_path = os.path.join(image_dir, item)
+                # Skip the products subdirectory
+                if os.path.isdir(item_path) and item == "products":
+                    continue
+                
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                    file_count += 1
+                    
+            print(f"Cleared {file_count} files from images directory: {image_dir}")
+            return True
+        
+        except Exception as e:
+            print(f"Error clearing images directory: {str(e)}")
+            return False
+
+    def _is_people_related(self, text: str) -> bool:
+        """Detect if the prompt is about a person or people (less aggressive version)."""
+        people_keywords = [
+            'celebrity', 'celebrities', 'actor', 'actress', 'singer', 'musician',
+            'politician', 'president', 'prime minister', 'athlete', 'sports star', 'influencer',
+            'biography', 'profile'
+        ]
+        text_lower = text.lower()
+        return any(kw in text_lower for kw in people_keywords)
+
+    def is_duplicate_blog(self, title: str, description: str = "", threshold: float = 0.85) -> bool:
+        """
+        Check if a blog with a similar title or description already exists using fuzzy matching.
+        Args:
+            title: The blog title to check
+            description: The blog description/summary
+            threshold: Similarity threshold (0-1)
+        Returns:
+            True if a duplicate is found, False otherwise
+        """
+        try:
+            from difflib import SequenceMatcher
+            recent_posts = self.get_recent_posts(max_results=20)
+            for post in recent_posts:
+                existing_title = post.get('title', '').lower()
+                existing_content = post.get('content', '').lower()
+                # Compare titles
+                title_ratio = SequenceMatcher(None, title.lower(), existing_title).ratio()
+                if title_ratio >= threshold:
+                    print(f"Duplicate detected by title: '{existing_title}' (similarity: {title_ratio:.2f})\n")
+                    return True
+                # Compare descriptions if provided
+                if description:
+                    desc_ratio = SequenceMatcher(None, description.lower(), existing_content[:500]).ratio()
+                    if desc_ratio >= threshold:
+                        print(f"Duplicate detected by description (similarity: {desc_ratio:.2f})\n")
+                        return True
+            return False
+        except Exception as e:
+            print(f"Error in duplicate blog check: {str(e)}\n")
             return False
 
 blog_service = BlogService()

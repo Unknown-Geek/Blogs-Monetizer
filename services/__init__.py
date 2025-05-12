@@ -9,14 +9,16 @@ from .social_service import social_service
 from .trend_service import trend_service
 from .automation_service import automation_service
 from .analytics_service import analytics_service
-from .ad_service import ad_service
+# Removing circular import
+# from .ad_service import ad_service
 
 __all__ = [
     'blog_service',
     'seo_service',
-    'image_service',    'social_service',
+    'image_service',    
+    'social_service',
     'trend_service',
     'automation_service',
-    'analytics_service',
-    'ad_service'
+    'analytics_service'
+    # 'ad_service' # Removed to avoid circular import
 ]

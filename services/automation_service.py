@@ -3,6 +3,7 @@ import time
 import random
 import threading
 import re
+import difflib
 from datetime import datetime, timedelta
 import os
 import json
@@ -397,32 +398,39 @@ class AutomationService:
         return recent_topics
     
     def _is_duplicate_topic(self, topic: Dict, recent_topics: Dict[str, datetime]) -> bool:
-        """Check if a topic is a duplicate of a recently published one"""
+        """Check if a topic is a duplicate of a recently published one (strengthened)"""
         # Check exact URL match for news articles
         if "url" in topic:
             topic_key = f"{topic['source']}:{topic['url']}"
             if topic_key in recent_topics:
                 return True
-                
         # Check exact topic match
         topic_key = f"{topic['source']}:{topic['topic']}"
         if topic_key in recent_topics:
             return True
-            
-        # For news articles, check title similarity
+        # For news articles, check title and description similarity
         if topic['source'] == 'news' and 'topic' in topic:
-            # Normalize the topic title
             normalized_title = re.sub(r'[^\w\s]', '', topic['topic'].lower())
             title_words = set(normalized_title.split())
-            
-            # Only keep significant words (longer than 3 chars)
             significant_words = [w for w in title_words if len(w) > 3]
             if significant_words:
-                # Create a key from the sorted words to detect similar titles
                 words_key = f"keywords:{','.join(sorted(significant_words))}"
                 if words_key in recent_topics:
                     return True
-                    
+            # Fuzzy match: compare with all recent news topics and descriptions
+            for key in recent_topics:
+                if key.startswith('news:') or key.startswith('title:') or key.startswith('keywords:'):
+                    # Extract the recent topic string
+                    recent_topic = key.split(':', 1)[-1]
+                    # Compare titles
+                    ratio = difflib.SequenceMatcher(None, topic['topic'].lower(), recent_topic.lower()).ratio()
+                    if ratio > 0.85:
+                        return True
+                    # Compare descriptions if available
+                    if 'description' in topic and topic['description']:
+                        ratio_desc = difflib.SequenceMatcher(None, topic['description'].lower(), recent_topic.lower()).ratio()
+                        if ratio_desc > 0.85:
+                            return True
         return False
     
     def _get_failure_count(self, topic: Dict) -> int:
