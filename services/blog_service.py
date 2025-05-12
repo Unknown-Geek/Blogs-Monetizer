@@ -90,6 +90,49 @@ Make sure the content is original, informative, and engaging.
 """
         return structured_prompt
         
+    def integrate_affiliate_products(self, content: str, topic: str) -> str:
+        """
+        Integrate affiliate products ads into blog content based on topic relevance.
+        
+        Args:
+            content: The HTML blog content
+            topic: The blog topic/subject
+            
+        Returns:
+            Content with affiliate product ads integrated
+        """
+        try:
+            from services.ad_service import ad_service
+            
+            # Fetch affiliate products from spreadsheet or cache
+            affiliate_products = ad_service.fetch_affiliate_products()
+            
+            if not affiliate_products:
+                print("No affiliate products found. Skipping affiliate integration.")
+                return content
+                
+            # Determine how many affiliate ads to insert based on content length
+            # Roughly 1 ad per 400 words, with a max of 3
+            word_count = len(re.findall(r'\w+', content))
+            max_affiliate_ads = min(3, max(1, word_count // 400))
+            
+            print(f"Integrating up to {max_affiliate_ads} affiliate ads based on content length ({word_count} words)")
+            
+            # Insert the affiliate ads
+            enhanced_content = ad_service.insert_affiliate_ads(
+                content, 
+                affiliate_products,
+                max_affiliate_ads=max_affiliate_ads,
+                context=topic if topic else None
+            )
+            
+            return enhanced_content
+            
+        except Exception as e:
+            print(f"Error integrating affiliate products: {str(e)}")
+            # Return original content if there's an error
+            return content
+
     def _format_content(self, content: str) -> str:
         """Add enhanced HTML formatting to the generated content with better Markdown parsing"""
         paragraphs = content.split("\n\n")
@@ -320,6 +363,15 @@ Make sure the content is original, informative, and engaging.
             # Add styles to the post content
             post_content = ad_styles + post_content
             
+            # Insert affiliate product ads based on content relevance
+            try:
+                # Extract a topic from the title for better matching
+                topic = title.lower()
+                # Integrate affiliate product ads
+                post_content = self.integrate_affiliate_products(post_content, topic)
+            except Exception as e:
+                print(f"Warning: Could not integrate affiliate products: {str(e)}")
+            
             # Convert ad placement hooks to actual ad code
             try:
                 from services.ad_service import ad_service
@@ -347,6 +399,10 @@ Make sure the content is original, informative, and engaging.
             
             # Add metadata to the result
             result["success"] = True
+            
+            # Clear images directory after successful publishing
+            self.clear_images_directory()
+            
             return result
             
         except Exception as e:
@@ -435,6 +491,39 @@ Make sure the content is original, informative, and engaging.
                 
         except Exception as e:
             print(f"Error updating post: {str(e)}")
+            return False
+
+    def clear_images_directory(self):
+        """Clear the images directory after successful blog publishing"""
+        try:
+            # Get image directory path
+            image_dir = os.environ.get("IMAGE_OUTPUT_DIR", "./images")
+            
+            # Make sure the directory exists
+            if not os.path.exists(image_dir):
+                print("Images directory doesn't exist.")
+                return False
+                
+            # Count files before deletion
+            file_count = 0
+            
+            # Remove all files in the images directory (but keep the directory itself)
+            # Also, keep the products subdirectory
+            for item in os.listdir(image_dir):
+                item_path = os.path.join(image_dir, item)
+                # Skip the products subdirectory
+                if os.path.isdir(item_path) and item == "products":
+                    continue
+                
+                if os.path.isfile(item_path):
+                    os.remove(item_path)
+                    file_count += 1
+                    
+            print(f"Cleared {file_count} files from images directory: {image_dir}")
+            return True
+        
+        except Exception as e:
+            print(f"Error clearing images directory: {str(e)}")
             return False
 
 blog_service = BlogService()

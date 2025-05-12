@@ -47,7 +47,8 @@ except ImportError as e:
         sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(description="Autonomous Blog Generator")    parser.add_argument('--config', type=str, help='Path to config JSON file')
+    parser = argparse.ArgumentParser(description="Autonomous Blog Generator")    
+    parser.add_argument('--config', type=str, help='Path to config JSON file')
     parser.add_argument('--run-once', action='store_true', help='Run once and exit')
     parser.add_argument('--schedule', action='store_true', help='Run on a schedule')
     parser.add_argument('--posts-per-day', type=int, help='Number of posts per day')

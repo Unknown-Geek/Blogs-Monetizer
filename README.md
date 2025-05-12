@@ -201,3 +201,47 @@ The system implements comprehensive monetization strategies for blog content:
 
 - **Ad Networks**: Ready to integrate with Google Ads, Carbon, and other networks
 - **Direct Partnerships**: Support for custom direct advertiser relationships
+
+## Affiliate Product Integration
+
+### Setting Up Your Affiliate Products Spreadsheet
+
+The blog monetization system can integrate affiliate products from your Google Spreadsheet. Follow these steps to set it up:
+
+1. **Create a Google Spreadsheet** with the following columns:
+   - Product Name
+   - Description
+   - Affiliate Link
+   - Image URL
+   - Category (comma-separated tags)
+   - Commission
+   - Price
+
+2. **Share the spreadsheet** with your service account email (found in your `.env` file under `GA_CLIENT_EMAIL` or in your service account credentials file).
+
+3. **Set the environment variables** in your `.env` file:
+   ```
+   AFFILIATE_SPREADSHEET_URL=https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=sharing
+   USE_SERVICE_ACCOUNT=true
+   AFFILIATE_SHEET_NAME=Products  # Optional: Name of the sheet tab with your products
+   ```
+
+4. **Test the integration** by running:
+   ```
+   python test_spreadsheet_fetch.py
+   python test_affiliate_products.py
+   ```
+
+If you don't have a spreadsheet set up, the system will use sample affiliate products for testing purposes.
+
+### Service Account Setup
+
+To use the Google Sheets integration, you need a service account:
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google Sheets API and Google Drive API
+4. Create a service account with "Editor" permissions
+5. Create and download a JSON key for the service account
+6. Save the JSON key as `credentials/service-account.json`
+7. Share your Google Sheets with the service account email address

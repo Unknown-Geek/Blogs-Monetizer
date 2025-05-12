@@ -269,3 +269,53 @@ This document provides an overview of all available API endpoints in the Monetiz
   }
   ```
 - **Description**: Returns analytics data about the blog posts.
+
+## Affiliate Product API
+
+### Add Affiliate Ads
+
+- **URL**: `/api/add-affiliate-ads`
+- **Method**: `POST`
+- **Request Body**:
+  ```json
+  {
+    "content": "<p>Your blog content here...</p>",
+    "max_affiliate_ads": 2,
+    "category": "technology"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "content": "<p>Your blog content with affiliate ads inserted...</p>",
+    "products_used": 2,
+    "total_products_available": 5
+  }
+  ```
+- **Description**: Inserts affiliate product ads into blog content based on relevance.
+
+### Get Affiliate Products
+
+- **URL**: `/api/affiliate-products`
+- **Method**: `GET`
+- **Query Parameters**:
+  - `category` (optional): Filter products by category
+  - `limit` (optional): Limit the number of products returned
+- **Response**:
+  ```json
+  {
+    "products": [
+      {
+        "product_name": "Product Name",
+        "description": "Product description",
+        "affiliate_link": "https://example.com/product",
+        "image_url": "https://example.com/image.jpg",
+        "category": "category1,category2",
+        "commission": "10%",
+        "price": "$99.99"
+      }
+    ],
+    "total": 5
+  }
+  ```
+- **Description**: Fetches affiliate products from the configured spreadsheet.
