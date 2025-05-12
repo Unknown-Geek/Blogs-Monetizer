@@ -170,24 +170,24 @@ class GoogleSheetsService:
         # Format the products based on the spreadsheet structure
         formatted_products = []
         
-        for row in raw_products:
-            # Check if Affiliate Links column exists - this is our minimal requirement
+        for row in raw_products:            # Check if Affiliate Links column exists - this is our minimal requirement
             if 'Affiliate Links' in row and row['Affiliate Links'].strip():
-                # Create a product with just the URL, other fields will be extracted by visiting the URL
+                # Create a product with URL and image URL if available
                 product = {
                     "url": row['Affiliate Links'].strip(),
                     "product_name": f"Product {len(formatted_products)+1}",  # Default name
                     "description": "",  # Empty description
-                    "price": ""  # Empty price
+                    "price": "",  # Empty price
+                    "image_url": row.get('Product Image URL', '')  # Get image URL from spreadsheet
                 }
                 formatted_products.append(product)
             # Also check for singular form as fallback
             elif 'Affiliate Link' in row and row['Affiliate Link'].strip():
                 product = {
                     "url": row['Affiliate Link'].strip(),
-                    "product_name": row.get('Product Name', f"Product {len(formatted_products)+1}"),
-                    "description": row.get('Description', ''),
-                    "price": row.get('Price', '')
+                    "product_name": row.get('Product Name', f"Product {len(formatted_products)+1}"),                    "description": row.get('Description', ''),
+                    "price": row.get('Price', ''),
+                    "image_url": row.get('Product Image URL', '')  # Get image URL from spreadsheet
                 }
                 formatted_products.append(product)
         

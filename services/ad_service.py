@@ -106,25 +106,18 @@ class AdService:
                 if better_name:
                     product_name = better_name
             
-            image_path = product.get("image_path")
+            # Get image URL from the product
+            image_url = product.get("image_url", "")
                 
             # Generate a catchphrase based on the product name and context
             catchphrase = self._generate_catchphrase(product_name, context)
             
-            # Handle the image - if we have a local image path, convert it to a data URI
+            # Handle the image - use directly from URL if available
             image_html = "<div style='width: 100%; height: 100%; background-color: #f5f5f5; display: flex; align-items: center; justify-content: center; border-radius: 4px;'>No Image</div>"
             
-            if image_path and os.path.exists(image_path):
-                try:
-                    # Convert the image to data URI using our helper method
-                    data_uri = self._convert_image_to_data_uri(image_path, product_name)
-                    if data_uri:
-                        # Create the image HTML with the data URI
-                        image_html = f"<img src='{data_uri}' alt='{product_name}' style='max-width: 100%; height: auto; border-radius: 4px;'>"
-                    else:
-                        print(f"Failed to convert image to data URI: {image_path}")
-                except Exception as e:
-                    print(f"Error embedding product image: {str(e)}")
+            if image_url and image_url.strip():
+                # Use image URL directly
+                image_html = f"<img src='{image_url}' alt='{product_name}' style='max-width: 100%; height: auto; border-radius: 4px;'>"
             
             # Create the HTML layout with left-aligned image and right-aligned text + button
             html = f"""
@@ -182,15 +175,14 @@ class AdService:
                     max-width: 100% !important;
                 }
             }
-            </style>
-            """
+            </style>            """
             return content + "\n" + responsive_css + "<div class='affiliate-section'><h2>Recommended Products</h2>\n" + "\n".join(product_html_parts) + "</div>"
         return content
-
+        
     def estimate_revenue(self, content: str, views: int) -> Dict:
         # Placeholder implementation
         return {"estimated_revenue": {"total": 5.0}}
-
+        
     def _extract_product_name_from_url(self, product_url: str) -> str:
         """Extract a more descriptive product name from a URL, especially for Amazon products"""
         if "amazon" in product_url.lower():
@@ -219,35 +211,6 @@ class AdService:
                         
         # Default fallback
         return "Featured Product"
-
-    def _convert_image_to_data_uri(self, image_path: str, product_name: str) -> str:
-        """
-        Converts a local image path to a data URI for embedding in HTML.
-        This ensures the image is properly displayed in published blogs.
-        """
-        if not image_path or not os.path.exists(image_path):
-            return None
-            
-        try:
-            # Determine the correct mime type based on file extension
-            mime_type = "image/jpeg"  # Default
-            if image_path.lower().endswith('.png'):
-                mime_type = "image/png"
-            elif image_path.lower().endswith('.gif'):
-                mime_type = "image/gif"
-            elif image_path.lower().endswith('.webp'):
-                mime_type = "image/webp"
-            
-            # Read the image and convert to base64
-            with open(image_path, "rb") as img_file:
-                img_data = img_file.read()
-                import base64
-                img_b64 = base64.b64encode(img_data).decode('utf-8')
-                data_uri = f"data:{mime_type};base64,{img_b64}"
-                return data_uri
-        except Exception as e:
-            print(f"Error converting image to data URI: {str(e)}")
-            return None
             
     def _generate_catchphrase(self, product_name: str, context: str = None) -> str:
         """
