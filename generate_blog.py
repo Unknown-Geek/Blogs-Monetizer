@@ -31,6 +31,10 @@ def get_trending_topic() -> Dict[str, Any]:
     topics = trend_service.get_trending_topics(sources=["news"], filter_people=True)
     return topics[0] if topics else {}
 
+def get_trending_topics_list(count=5) -> List[Dict[str, Any]]:
+    """Get a list of trending topics from news sources"""
+    return trend_service.get_trending_topics(sources=["news"], count=count, filter_people=True)
+
 def generate_blog_content(topic: Dict[str, Any]) -> Dict[str, Any]:
     """Generate blog content based on the trending topic"""
     prompt = trend_service.generate_blog_topic(topic)
@@ -220,54 +224,66 @@ def main():
     print("=" * 80)
     
     try:
-        # 1. Find trending topic
+        # 1. Find trending topics (get a list, not just one)
         print("1. Finding trending topics from news sources...")
-        topic = get_trending_topic()
-        if not topic:
+        topics = get_trending_topics_list(count=10)
+        if not topics:
             print("No trending topics found. Exiting.")
             return
-            
-        print(f"Selected topic: {topic.get('topic', '')}")
-        print(f"Source: {topic.get('source', 'unknown')}")
-        print(f"Category: {topic.get('category', 'general')}")
-        if "description" in topic and topic["description"]:
-            print(f"Description: {topic['description']}")
-            
-        # 2. Generate blog content
-        print("2. Generating blog content...")
-        blog_prompt = trend_service.generate_blog_topic(topic)
-        print(f"Blog prompt: {blog_prompt[:100]}...")
         
-        start_time = time.time()
-        blog_data = generate_blog_content(topic)
-        content = blog_data.get("content", "")
-        
-        generation_time = time.time() - start_time
-        print(f"Content generated in {generation_time:.2f} seconds")
-        print(f"Content length: {len(content)} characters")
-        
-        if not content:
-            print("Failed to generate blog content. Exiting.")
+        topic_attempted = set()
+        content = None
+        blog_prompt = None
+        blog_title = None
+        for topic in topics:
+            if topic.get('topic') in topic_attempted:
+                continue
+            topic_attempted.add(topic.get('topic'))
+            print(f"Selected topic: {topic.get('topic', '')}")
+            print(f"Source: {topic.get('source', 'unknown')}")
+            print(f"Category: {topic.get('category', 'general')}")
+            if "description" in topic and topic["description"]:
+                print(f"Description: {topic['description']}")
+            # 2. Generate blog content
+            print("2. Generating blog content...")
+            blog_prompt = trend_service.generate_blog_topic(topic)
+            print(f"Blog prompt: {blog_prompt[:100]}...")
+            start_time = time.time()
+            try:
+                blog_data = generate_blog_content(topic)
+                content = blog_data.get("content", "")
+                generation_time = time.time() - start_time
+                print(f"Content generated in {generation_time:.2f} seconds")
+                print(f"Content length: {len(content)} characters")
+                if not content:
+                    print("Failed to generate blog content. Trying next topic...")
+                    continue
+                break  # Success!
+            except Exception as e:
+                err_msg = str(e)
+                if "people-related topics are not allowed" in err_msg.lower():
+                    print("People-related topic detected. Trying next topic...")
+                    continue
+                print(f"Error generating blog content: {err_msg}")
+                print("Trying next topic...")
+                continue
+        else:
+            print("Error: All topics failed to generate acceptable blog content.")
             return
-            
         # 3. Analyze SEO
         print("3. Analyzing SEO...")
         seo_results = analyze_seo(content)
-        
         # 3.5. Prepare for monetization
         print("3.5. Preparing ad placements for monetization...")
         monetized_content = monetize_content(content)
-        
         # 4. Extract blog title
         print("4. Extracting blog title...")
         blog_title = extract_blog_title(content)
         print(f"Blog title: {blog_title}")
-        
         # 5. Generate image
         print("5. Generating image...")
         image_result = generate_image(topic, blog_title)
         image_path = image_result.get("image_path", "")
-        
         if not image_path or not os.path.exists(image_path):
             print("Failed to generate image. Using fallback image.")
             fallback_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fallback_images")
@@ -281,41 +297,31 @@ def main():
             print(f"Image generated successfully: {image_path}")
             if "keywords" in image_result:
                 print(f"Generated image keywords: {image_result['keywords']}")
-        
         # 6. Generate labels/tags
         print("6. Generating labels/tags...")
         labels = generate_tags(content, topic)
         unique_labels = list(set(labels))
         print(f"Labels: {', '.join(unique_labels)}")
-        
         # 7. Publish to Blogger
         print("7. Publishing blog to Blogger...")
         result = publish_blog(blog_title, monetized_content, image_path, unique_labels)
         published_url = result.get("url", "")
-        
         # 7.5 Clean up images
         clear_images_directory()
         print("Images directory cleared")
-        
         # 8. Sharing on social media (disabled)
         if published_url:
             print("\n8. Sharing on social media...")
             try:
                 share_message = f"New blog post: {blog_title} - Check it out! {published_url}"
-                
-                # Add hashtags from the labels
                 hashtags = [f"#{label.replace(' ', '')}" for label in unique_labels[:3] if ' ' not in label]
                 if hashtags:
                     share_message += " " + " ".join(hashtags)
-                
                 print(f"Share message: {share_message}")
-                
-                # Share on social platforms (disabled but logged)
                 share_result = social_service.share_across_platforms(
                     message=share_message,
                     link=published_url
                 )
-                
                 if "disabled" in share_result:
                     print("Social sharing is disabled")
                 else:
@@ -327,7 +333,6 @@ def main():
             print("No URL available for sharing on social media")
     except Exception as e:
         print(f"ERROR: {str(e)}")
-    
     print("=" * 80)
     print("Process completed successfully")
     print("=" * 80)
