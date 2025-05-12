@@ -4,7 +4,7 @@ This document explains the ad monetization features implemented in the Monetize-
 
 ## Overview
 
-The ad monetization module (`ad_service.py`) provides tools to analyze content and insert optimal ad placements to maximize revenue while maintaining a positive user experience. The system supports multiple ad formats, networks, and pricing models.
+The ad monetization module (`ad_service.py`) provides tools to analyze content and insert optimal ad placements to maximize revenue while maintaining a positive user experience. The system supports multiple ad formats, ad networks, and pricing models.
 
 ## Key Features
 
@@ -15,15 +15,21 @@ The system supports multiple ad formats, each appropriate for different content 
 - **Banners & Leaderboards** ("wide fellas"): Rectangular ads placed at the top, bottom, or between content sections
 - **Skyscrapers** ("long lads"): Tall, narrow ads placed alongside content
 - **Rectangles**: Medium-sized ads integrated within the content flow
-- **Interstitials**: Full-page ads shown between content sections
+- **Interstitials**: Full-page ads shown between content sections or on navigation
+- **Native Ads**: Ads styled to match the look and feel of the blog content
 
-### Revenue Models
+### Supported Ad Networks
 
-The system implements two primary earning models:
+- **Google AdSense**
+- **Media.net**
+- **Amazon Associates**
+- **Custom Affiliate Networks** (via spreadsheet integration)
 
-1. **CPM (Cost Per Thousand Impressions)**: Revenue is generated based on the number of times ads are viewed. This model rewards high-traffic content regardless of engagement.
+### Pricing Models
 
-2. **CPA (Cost Per Action/Click)**: Revenue is generated when users take action on ads, typically by clicking through. This model rewards engaging content that drives user interaction.
+- **CPC (Cost Per Click)**
+- **CPM (Cost Per Mille/Thousand Impressions)**
+- **CPA (Cost Per Action)**
 
 ### Advertiser Relationships
 
@@ -55,41 +61,21 @@ The system includes tools for demographic targeting:
 - **Duplicate Blog Prevention:** The automation service uses fuzzy matching and URL/title checks to prevent more than one blog being written about the same or very similar news.
 - **AI Clickbait Phrases:** Optionally, the system can use Google's Gemini API to generate clickbait ad phrases for affiliate products.
 
-## Usage Examples
+## How It Works
 
-### Basic Ad Placement
+1. **Content Analysis**: The module analyzes blog content to determine optimal ad placement points (e.g., after certain paragraphs, at section breaks, or in sidebars).
+2. **Ad Strategy Generation**: Based on content length, structure, and user settings, an ad strategy is generated to balance monetization and user experience.
+3. **Ad Insertion**: Ad placeholders or actual ad code are inserted into the content at calculated positions.
+4. **Affiliate Product Integration**: Relevant affiliate products can be fetched from a Google Spreadsheet and inserted as native ads or product blocks.
 
-```python
-# Generate a basic ad strategy based on content information
-content_info = {
-    "topic": "Technology Trends",
-    "word_count": 1200,
-    "category": "technology",
-    "audience": "professionals"
-}
-strategy = ad_service.generate_ad_strategy(content_info)
-
-# Prepare content with ad placements
-content_with_ads = ad_service.prepare_content_for_ads(
-    content=my_html_content,
-    ad_density=strategy["density"]
-)
-
-# Estimate potential revenue
-revenue_estimate = ad_service.estimate_revenue(
-    content=content_with_ads,
-    views=5000  # Monthly views
-)
-```
-
-### Advanced Configuration
+## Example Usage
 
 ```python
-# Insert actual ad code from specific network
-final_content = ad_service.insert_ads_into_content(
-    content=content_with_ads,
-    network="carbon"  # Use Carbon Ads network
-)
+from services.ad_service import ad_service
+
+content = """<h1>Sample Blog Post</h1><p>...</p>"""
+ad_ready_content = ad_service.prepare_content_for_ads(content, ad_density="medium")
+final_content = ad_service.insert_ads_into_content(ad_ready_content, network="adsense")
 ```
 
 ## Ethical Guidelines
@@ -110,3 +96,14 @@ The system logs ad performance metrics in JSON format, including:
 - Ad strategy decisions
 
 These logs can be analyzed to optimize future monetization strategies.
+
+## Best Practices
+
+- Avoid excessive ad density to maintain a positive user experience and comply with ad network policies.
+- Use a mix of ad formats for better engagement.
+- Regularly review ad performance and adjust strategies as needed.
+
+## See Also
+
+- [Affiliate Product Integration Guide](affiliate_integration.md)
+- [Google Sheets API Integration Guide](google_sheets_setup.md)
