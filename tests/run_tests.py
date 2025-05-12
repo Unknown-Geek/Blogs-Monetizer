@@ -20,11 +20,12 @@ def run_tests():
     print(f"RUNNING MONETIZE-BLOGS SYSTEM TESTS - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80 + "\n")
     
-    # Collect tests to run
+    # Collect all test_*.py files in the tests directory (excluding this runner)
+    tests_dir = os.path.dirname(os.path.abspath(__file__))
     test_modules = [
-        "test_trend_service",
-        "test_seo_service",
-        "test_image_service"
+        os.path.splitext(f)[0]
+        for f in os.listdir(tests_dir)
+        if f.startswith("test_") and f.endswith(".py") and f != os.path.basename(__file__)
     ]
     
     results = {}

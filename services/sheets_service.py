@@ -178,16 +178,17 @@ class GoogleSheetsService:
                     "product_name": f"Product {len(formatted_products)+1}",  # Default name
                     "description": "",  # Empty description
                     "price": "",  # Empty price
-                    "image_url": row.get('Product Image URL', '')  # Get image URL from spreadsheet
+                    "image_url": row.get('Image URL', '')  # Get image URL from spreadsheet
                 }
                 formatted_products.append(product)
             # Also check for singular form as fallback
             elif 'Affiliate Link' in row and row['Affiliate Link'].strip():
                 product = {
                     "url": row['Affiliate Link'].strip(),
-                    "product_name": row.get('Product Name', f"Product {len(formatted_products)+1}"),                    "description": row.get('Description', ''),
+                    "product_name": row.get('Product Name', f"Product {len(formatted_products)+1}"),
+                    "description": row.get('Description', ''),
                     "price": row.get('Price', ''),
-                    "image_url": row.get('Product Image URL', '')  # Get image URL from spreadsheet
+                    "image_url": row.get('Image URL', '')  # Get image URL from spreadsheet
                 }
                 formatted_products.append(product)
         

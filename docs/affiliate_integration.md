@@ -249,3 +249,10 @@ python test_affiliate_products.py
 ```
 
 This will generate a sample blog post with affiliate products and open it in your browser for review.
+
+## Advanced Integration Logic
+
+- **Relevance Scoring:** When inserting affiliate ads, the system scores all products for relevance to the blog content (using category and keyword matching). The most relevant products are displayed; if no strong matches, random products are chosen.
+- **No Products, No Ads:** If there are no products in the spreadsheet, no affiliate ads are shown in the blog.
+- **AI Clickbait Phrases:** Optionally, the system can use Gemini to generate clickbait ad phrases for each product.
+- **Duplicate Blog Prevention:** The system prevents more than one blog from being written about the same or very similar news using fuzzy matching and URL/title checks.

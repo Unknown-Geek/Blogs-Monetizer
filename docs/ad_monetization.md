@@ -49,6 +49,12 @@ The system includes tools for demographic targeting:
 
 2. **Ethical Considerations**: The system includes filters for sensitive topics and reduces ad density on health-related content.
 
+## Advanced Features
+
+- **Relevance-Based Affiliate Ads:** The system analyzes blog content and selects the most relevant affiliate products using category and keyword matching. If no strong matches are found, random products are chosen. If there are no products in the spreadsheet, no affiliate ads are shown.
+- **Duplicate Blog Prevention:** The automation service uses fuzzy matching and URL/title checks to prevent more than one blog being written about the same or very similar news.
+- **AI Clickbait Phrases:** Optionally, the system can use Google's Gemini API to generate clickbait ad phrases for affiliate products.
+
 ## Usage Examples
 
 ### Basic Ad Placement

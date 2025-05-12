@@ -49,6 +49,8 @@ credentials/
 # Generated content
 **/images/
 **/__pycache__/
+cache
+cache/
 
 # Logs
 *.log
@@ -63,5 +65,4 @@ Thumbs.db
 *.swp
 automation_log.json
 cache/
-tests/
-tests
+

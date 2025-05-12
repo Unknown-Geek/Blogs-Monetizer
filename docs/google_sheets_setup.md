@@ -52,6 +52,12 @@ Make sure:
 - All product URLs are valid
 - Image URLs are direct links to images (can be tested in browser)
 
+## Notes on Integration
+
+- **Column Names:** The spreadsheet must use the exact column names as shown (e.g., 'Product Name', 'Description', 'Affiliate Link', 'Image URL', 'Category', 'Commission', 'Price').
+- **No Products, No Ads:** If the spreadsheet is empty or not accessible, no affiliate ads will be shown in the blog content.
+- **Relevance-Based Selection:** The system will automatically select the most relevant products for each blog post based on content analysis.
+
 ## Alternative: OAuth Authentication (For User-Based Access)
 
 If you prefer OAuth authentication instead of a service account:

@@ -209,6 +209,7 @@ The system implements comprehensive monetization strategies for blog content:
 The blog monetization system can integrate affiliate products from your Google Spreadsheet. Follow these steps to set it up:
 
 1. **Create a Google Spreadsheet** with the following columns:
+
    - Product Name
    - Description
    - Affiliate Link
@@ -220,6 +221,7 @@ The blog monetization system can integrate affiliate products from your Google S
 2. **Share the spreadsheet** with your service account email (found in your `.env` file under `GA_CLIENT_EMAIL` or in your service account credentials file).
 
 3. **Set the environment variables** in your `.env` file:
+
    ```
    AFFILIATE_SPREADSHEET_URL=https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=sharing
    USE_SERVICE_ACCOUNT=true
@@ -245,3 +247,60 @@ To use the Google Sheets integration, you need a service account:
 5. Create and download a JSON key for the service account
 6. Save the JSON key as `credentials/service-account.json`
 7. Share your Google Sheets with the service account email address
+
+## Features
+
+### Autonomous Blog Generation
+
+- **Trend Detection:** Automatically identifies trending topics from Google News and other sources
+- **Scheduled Publishing:** Configurable schedule for automatic blog generation and posting
+- **Zero-Touch Operation:** End-to-end process from topic selection to social sharing
+
+### Content Generation
+
+- **AI-Powered Blog Creation:** Generate blog content based on trending topics using Google's Gemini API
+- **Prompt Engineering:** Enhanced prompts for better blog structure and SEO
+- **Content Formatting:** Markdown to HTML conversion with enhanced formatting
+
+### SEO Optimization
+
+- **Keyword Analysis:** Automatic detection of potential keywords from generated content
+- **Keyword Density Calculation:** Monitors keyword density to prevent overuse
+- **Word Count Validation:** Ensures content meets minimum length requirements for SEO
+- **SEO Scoring:** Provides a quantitative assessment of content SEO quality (score out of 100)
+- **Issue Detection:** Identifies potential SEO issues with recommendations for improvement
+
+### Monetization
+
+- **Ad Placement:** Strategic ad placement (banner, leaderboard, rectangle, skyscraper, interstitial)
+- **Affiliate Product Integration:** Fetches affiliate products from Google Sheets and inserts relevant ads
+- **Ad Relevance:** Selects the most relevant affiliate products for each blog post
+- **Revenue Estimation:** Estimates potential ad revenue based on content and views
+
+### Affiliate Product Integration
+
+- **Google Sheets Integration:** Fetches products from a user-managed spreadsheet
+- **Image Handling:** Uses product image URLs or fetches images from product pages
+- **Catchphrase & Description:** Generates clickbait phrases and short descriptions for each ad
+- **No Products, No Ads:** If no products are available, no affiliate ads are shown
+
+### Image Generation
+
+- **AI Image Service:** Generates or fetches relevant images for blog posts
+- **Image Directory Management:** Cleans up images after publishing
+
+### Publishing & Social Sharing
+
+- **Blogger Integration:** Publishes content to Blogger with formatting intact
+- **Social Sharing (Logging):** Logs social sharing activity (actual sharing disabled for safety)
+
+### Automation & Logging
+
+- **Automation Service:** Schedules and manages blog generation and publishing
+- **Duplicate Prevention:** Prevents duplicate blogs on the same or similar news
+- **Logging:** Logs ad placements, strategies, automation activity, and errors
+
+### Testing & Extensibility
+
+- **Test Suite:** Includes scripts for testing all major features (ad integration, SEO, image, spreadsheet, etc.)
+- **Extensible Architecture:** Modular services for easy extension and customization

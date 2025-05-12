@@ -99,6 +99,15 @@ If no affiliate products appear in your blogs:
 - Verify that the spreadsheet data is correctly formatted
 - Make sure the system can access your spreadsheet
 
+## Troubleshooting: No Ads Displayed
+
+If you notice that no affiliate ads are being displayed in your blog content:
+
+- Check that your spreadsheet contains at least one valid product row.
+- Make sure the column names match exactly as required.
+- Ensure the service account has access to the spreadsheet.
+- If there are no products, the system will not display any affiliate ads (this is by design).
+
 ## Further Customization
 
 ### Styling Affiliate Ads
