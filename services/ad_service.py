@@ -181,7 +181,7 @@ class AdService:
                 padding: 15px;
                 background-color: #f9f9f9;
                 border-radius: 8px;
-                line-height: 2.5;
+                line-height: 1.5;
             }
             .affiliate-section h2 {
                 text-align: center;
