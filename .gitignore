@@ -67,3 +67,5 @@ automation_log.json
 cache/
 
 credentials/
+credentials\service-account.json
+service-account.json
