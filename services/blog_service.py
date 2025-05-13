@@ -140,8 +140,21 @@ Make sure the content is original, informative, and engaging.
             # Return original content if there's an error
             return content
 
+    def add_adsense_head(self, html_content: str) -> str:
+        """Ensure the AdSense script is present in the <head> of the HTML content."""
+        adsense_code = '<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8881156358413248" crossorigin="anonymous"></script>'
+        # If there's a <head> tag, insert right after it
+        if '<head>' in html_content:
+            return html_content.replace('<head>', f'<head>\n{adsense_code}\n', 1)
+        # If there's no <head>, add one at the top
+        elif '<html>' in html_content:
+            return html_content.replace('<html>', f'<html>\n<head>\n{adsense_code}\n</head>', 1)
+        else:
+            # Fallback: prepend a head section
+            return f'<head>\n{adsense_code}\n</head>\n' + html_content
+
     def _format_content(self, content: str) -> str:
-        """Add enhanced HTML formatting to the generated content with better Markdown parsing"""
+        """Add enhanced HTML formatting to the generated content with better Markdown parsing and AdSense in <head>."""
         paragraphs = content.split("\n\n")
         formatted_paragraphs = []
         in_list = False
@@ -223,8 +236,16 @@ Make sure the content is original, informative, and engaging.
         if in_list:
             formatted_paragraphs.append(self._format_list(list_items, list_type))
         
-        return "\n".join(formatted_paragraphs)
-    
+        html_body = "\n".join(formatted_paragraphs)
+        # Wrap in HTML structure if not already present
+        if not html_body.strip().lower().startswith('<html'):
+            html_content = f"<html>\n<head></head>\n<body>\n{html_body}\n</body>\n</html>"
+        else:
+            html_content = html_body
+        # Ensure AdSense code is in the <head>
+        html_content = self.add_adsense_head(html_content)
+        return html_content
+
     def _process_inline_formatting(self, text: str) -> str:
         """Process inline Markdown formatting (bold, italic, links) within text"""
         # Process links in markdown format [text](url)
