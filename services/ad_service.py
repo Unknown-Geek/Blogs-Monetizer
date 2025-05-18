@@ -115,32 +115,65 @@ class AdService:
             return score
 
         # Score all products
-        scored_products = [(score_product(p), p) for p in affiliate_products]
-        # Sort by score descending, then shuffle those with same score
+        scored_products = [(score_product(p), p) for p in affiliate_products]        # Sort by score descending, then shuffle those with same score
         scored_products.sort(key=lambda x: x[0], reverse=True)
         # Group by score
         grouped = {}
         for score, prod in scored_products:
-            grouped.setdefault(score, []).append(prod)
-        # Flatten, shuffling within each score group
+            grouped.setdefault(score, []).append(prod)        # Flatten, shuffling within each score group
         sorted_products = []
         for score in sorted(grouped.keys(), reverse=True):
             group = grouped[score]
             random.shuffle(group)
             sorted_products.extend(group)
+            
+        # Track used product names and URLs to avoid duplicates
+        used_product_names = set()
+        used_product_urls = set()
+        used_product_keywords = set()  # For similarity detection
 
-        # Only use top N products
+        # Only use top N products, ensuring they're different from each other
         for product in sorted_products:
             if inserted_count >= max_affiliate_ads:
                 break
+                
             product_url = product.get("url", "#")
             if not product_url or product_url == "#":
                 continue
+                
+            # Extract product name and enhance it if possible
             product_name = product.get("product_name", "Shop Now")
             if product_name.startswith("Product "):
                 better_name = self._extract_product_name_from_url(product_url)
                 if better_name:
                     product_name = better_name
+            
+            # Create a normalized version of product name for better duplicate detection
+            normalized_name = product_name.lower().strip()
+            
+            # Extract key words from the product name (words longer than 4 chars)
+            keywords = [word for word in normalized_name.split() if len(word) > 4]
+            
+            # Check if we've already used this URL
+            if product_url in used_product_urls:
+                continue
+                
+            # Check if the name is a direct match
+            if normalized_name in used_product_names:
+                continue
+                
+            # Check for similar products (having 2+ matching keywords)
+            keyword_matches = sum(1 for kw in keywords if kw in used_product_keywords)
+            if keywords and keyword_matches >= 2:
+                continue
+                
+            # Store this product name and URL so we don't show duplicates
+            used_product_names.add(normalized_name)
+            used_product_urls.add(product_url)
+            for kw in keywords:
+                used_product_keywords.add(kw)
+            
+            # Process image URL to ensure it's properly formatted
             image_url = product.get("image_url", "")
             if image_url and image_url.strip() and not (image_url.startswith('http://') or image_url.startswith('https://')):
                 if image_url.startswith('//'):

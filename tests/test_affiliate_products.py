@@ -80,13 +80,30 @@ def test_affiliate_products():
     <p>Beauty and self-care routines shouldn't be neglected either, as taking care of yourself
     is an important part of maintaining work-life balance.</p>
     """
-    
-    # Insert affiliate ads
+      # Insert affiliate ads
     content_with_affiliates = ad_service.insert_affiliate_ads(
         sample_content, 
         affiliate_products, 
         max_affiliate_ads=2
     )
+    
+    # Test for duplicate products by parsing the HTML content
+    import re
+    product_urls = re.findall(r'href="([^"]+)"[^>]*>Shop Now</a>', content_with_affiliates)
+    product_names = re.findall(r'<div[^>]*class="product-catchphrase"[^>]*>([^<]+)</div>', content_with_affiliates)
+    
+    # Check if we have duplicate URLs or very similar product names
+    unique_urls = set(product_urls)
+    if len(product_urls) != len(unique_urls):
+        print("⚠️ WARNING: Found duplicate product URLs in the generated affiliate ads!")
+        
+    # Also print the products that were selected
+    if product_names:
+        print("\nSelected products for display:")
+        for i, name in enumerate(product_names):
+            print(f"  {i+1}. {name}")
+            if i < len(product_urls):
+                print(f"     URL: {product_urls[i]}")
     
     # Save the result to a file for viewing
     output_dir = os.path.join(current_dir, "tests")
