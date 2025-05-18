@@ -7,7 +7,6 @@ This script runs the autonomous blog generator that:
 2. Generates blog content using AI
 3. Creates matching images
 4. Publishes to a blogging platform
-5. Shares on social media
 """
 
 import os

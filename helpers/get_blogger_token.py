@@ -49,23 +49,21 @@ def get_blogger_refresh_token():
         print(f"BLOGGER_REFRESH_TOKEN={credentials.refresh_token}")
         print("=================================\n")
         
-        # Save credentials to a file for future reference
-        with open('blogger_credentials.json', 'w') as f:
-            token_data = {
-                "refresh_token": credentials.refresh_token,
-                "client_id": client_id,
-                "client_secret": client_secret
-            }
-            json.dump(token_data, f, indent=4)
+        print("Add this token to your .env file or environment variables.")
+        print("Remember to keep this token secure - it provides access to your Blogger account.")
         
-        print("Credentials saved to blogger_credentials.json")
-        print("Add this refresh token to your .env file")
-        
+        # Return the refresh token
         return credentials.refresh_token
         
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Error during authentication: {e}")
         return None
 
 if __name__ == "__main__":
+    print("Blogger API Token Generator")
+    print("==========================")
+    print("This script will help you generate a refresh token for the Blogger API.")
+    print("You will be redirected to Google's authentication page in your browser.")
+    print("After you log in and grant permission, the token will be displayed here.")
+    
     get_blogger_refresh_token()

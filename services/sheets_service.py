@@ -10,10 +10,17 @@ from google.oauth2 import service_account
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from dotenv import load_dotenv
-
-# Load environment variables
+from dotenv import load_dotenv    # Load environment variables
 load_dotenv()
+
+# Set client email from service account if not explicitly defined
+if os.environ.get("GOOGLE_SERVICE_ACCOUNT_INFO") and not os.environ.get("GA_CLIENT_EMAIL"):
+    try:
+        service_account_dict = json.loads(os.environ.get("GOOGLE_SERVICE_ACCOUNT_INFO", "{}"))
+        if "client_email" in service_account_dict:
+            os.environ["GA_CLIENT_EMAIL"] = service_account_dict["client_email"]
+    except json.JSONDecodeError:
+        pass
 
 class GoogleSheetsService:
     """
@@ -26,16 +33,14 @@ class GoogleSheetsService:
         self.creds = None
         self.client = None
         
-        # Directory for storing credentials
-        self.creds_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "credentials")
-        os.makedirs(self.creds_dir, exist_ok=True)
+        # Main project directory
+        self.main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         
         # Paths for credential files
-        self.service_account_file = os.path.join(self.creds_dir, "service-account.json")
-        self.oauth_token_file = os.path.join(self.creds_dir, "token.json")
-        self.oauth_credentials_file = os.path.join(self.creds_dir, "credentials.json")
-        
-        # Scopes for Google Sheets API
+        self.service_account_file = os.path.join(self.main_dir, "service-account.json")
+        self.oauth_token_file = os.path.join(self.main_dir, "templates", "token.json")
+        self.oauth_credentials_file = os.path.join(self.main_dir, "templates", "credentials.json")
+          # Scopes for Google Sheets API
         self.scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly']
         
     def authenticate(self, use_service_account: bool = True) -> bool:
@@ -53,13 +58,31 @@ class GoogleSheetsService:
             if os.getenv('USE_SERVICE_ACCOUNT') is not None:
                 use_service_account = os.getenv('USE_SERVICE_ACCOUNT').lower() == 'true'
             
+            # First check if service account credentials exist in environment variables
+            service_account_info = os.getenv('GOOGLE_SERVICE_ACCOUNT_INFO')
+            
+            if use_service_account and service_account_info:
+                # Service Account authentication from environment variable (preferred for production)
+                try:
+                    service_account_dict = json.loads(service_account_info)
+                    self.creds = service_account.Credentials.from_service_account_info(
+                        service_account_dict, scopes=self.scopes
+                    )
+                    self.client = gspread.authorize(self.creds)
+                    print("Authenticated with Google Sheets API using service account from environment")
+                    return True
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing service account JSON from environment: {e}")
+                    # Fall through to try file-based authentication
+                
+            # Fallback to file-based service account if environment variable isn't set
             if use_service_account and os.path.exists(self.service_account_file):
-                # Service Account authentication (preferred for server applications)
+                # Service Account authentication from file (for development)
                 self.creds = service_account.Credentials.from_service_account_file(
                     self.service_account_file, scopes=self.scopes
                 )
                 self.client = gspread.authorize(self.creds)
-                print("Authenticated with Google Sheets API using service account")
+                print("Authenticated with Google Sheets API using service account file")
                 return True
                 
             else:

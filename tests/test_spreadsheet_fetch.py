@@ -36,17 +36,22 @@ def test_spreadsheet_fetch():
         return False
     
     print(f"✅ Using spreadsheet URL: {spreadsheet_url}")
-    
-    # 2. Verify service account settings
+      # 2. Verify service account settings
     use_service_account = os.environ.get("USE_SERVICE_ACCOUNT", "false").lower() == "true"
     print(f"✅ Using service account authentication: {use_service_account}")
     
-    service_account_path = os.path.join(current_dir, "credentials", "service-account.json")
-    if use_service_account and not os.path.exists(service_account_path):
-        print(f"❌ Service account file not found at {service_account_path}")
-        return False
-    
-    print(f"✅ Service account file exists at {service_account_path}")
+    # Check for service account in environment variables first (production)
+    service_account_info = os.environ.get("GOOGLE_SERVICE_ACCOUNT_INFO")
+    if use_service_account and service_account_info:
+        print(f"✅ Service account credentials found in environment variables")
+    else:
+        # Fallback to file-based approach (development)
+        service_account_path = os.path.join(current_dir, "..", "credentials", "service-account.json")
+        if use_service_account and not os.path.exists(service_account_path):
+            print(f"❌ Service account file not found at {service_account_path} and no credentials in environment")
+            return False
+        
+        print(f"✅ Service account file exists at {service_account_path}")
     
     # 3. Authenticate with Google Sheets API
     print("\nAuthenticating with Google Sheets API...")

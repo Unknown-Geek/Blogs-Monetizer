@@ -28,8 +28,7 @@ class AutomationService:
     def __init__(self):
         # Setup log file in logs directory
         self.log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
-        os.makedirs(self.log_dir, exist_ok=True)        
-        self.log_file = os.path.join(self.log_dir, "automation_log.json")
+        os.makedirs(self.log_dir, exist_ok=True)        self.log_file = os.path.join(self.log_dir, "automation_log.json")
           # Configuration with defaults and override from environment
         self.config = {
             "posts_per_day": int(os.environ.get("POSTS_PER_DAY", 1)),
@@ -449,10 +448,13 @@ class AutomationService:
             del self.failed_attempts[topic_key]
     
     def run_scheduled_job(self) -> None:
-        """Run the scheduled job if conditions are met"""        # No need to check for minimum time between posts
+        """Run the scheduled job if conditions are met"""
+        # Check if enough time has passed since the last post
         if self.last_post_time:
             hours_since_last_post = (datetime.now() - self.last_post_time).total_seconds() / 3600
-            print(f"Time since last post: {hours_since_last_post:.1f} hours")
+            if hours_since_last_post < self.config["min_hours_between_posts"]:
+                print(f"Not enough time since last post ({hours_since_last_post:.1f} hours)")
+                return
         
         result = self.generate_and_publish_blog()
         print(f"Blog automation result: {result['status']}")

@@ -64,5 +64,6 @@ Thumbs.db
 automation_log.json
 cache/
 
-credentials\service-account.json
-service-account.json
+# Service account files - no matter where they're stored
+service-account*.json
+service_account*.json

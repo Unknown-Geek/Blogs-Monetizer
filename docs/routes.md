@@ -121,25 +121,25 @@ This document provides an overview of all available API endpoints in the Monetiz
 
 - **URL**: `/api/automation/start`
 - **Method**: `POST`
-- **Request Body** (optional):
-  ```json
+- **Request Body** (optional): ```json
   {
-    "posts_per_day": 2,
-    "min_hours_between_posts": 6,
-    "trending_sources": ["google", "news"],
-    "categories": ["technology"],
-    "min_seo_score": 75
+  "posts_per_day": 2,
+  "trending_sources": ["google", "news"],
+  "categories": ["technology"],
+  "min_seo_score": 75
   }
   ```
-- **Response**:
-  ```json
+
+  ```
+- **Response**: ```json
   {
-    "status": "Automation started",
-    "config": {
-      "posts_per_day": 2,
-      "min_hours_between_posts": 6
-    }
+  "status": "Automation started",
+  "config": {
+  "posts_per_day": 2
   }
+  }
+  ```
+
   ```
 - **Description**: Starts the automated blog generation process with optional configuration.
 
@@ -206,7 +206,6 @@ This document provides an overview of all available API endpoints in the Monetiz
   {
     "automation": {
       "posts_per_day": 1,
-      "min_hours_between_posts": 8,
       "trending_sources": ["google", "news"],
       "categories": ["technology", "business", "science"],
       "min_seo_score": 70

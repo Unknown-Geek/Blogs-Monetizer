@@ -19,6 +19,17 @@ This system automates the entire process of blog content creation and publicatio
 2. **Content Generation**: Creates high-quality blog posts using Google's Gemini API
 3. **SEO Optimization**: Analyzes and improves content for search engine visibility
 4. **Monetization**: Implements optimal ad placement strategies for revenue generation
+
+## Utility Scripts
+
+The `helpers` directory contains utility scripts to assist with setup and configuration:
+
+- `convert_service_account_to_env.py` - Converts service account JSON to environment variable format
+- `set_env_variables.py` - Sets up environment variables for different deployment scenarios
+- `check_env_setup.py` - Verifies that environment variables are properly configured
+- `get_blogger_token.py` - Generates a refresh token for Blogger API authentication
+- `image_utils.py` - Utilities for managing image assets
+
 5. **Image Generation**: Sources relevant images from Unsplash with proper attribution
 6. **Publishing**: Publishes content to Blogger with formatting intact
 7. **Social Sharing**: Logging of social sharing activity (actual sharing disabled)
@@ -158,9 +169,10 @@ python tests/test_image_service.py
 The system can be configured through environment variables or via the API:
 
 - `POSTS_PER_DAY`: Number of posts to generate per day (default: 1)
-- `MIN_HOURS_BETWEEN_POSTS`: Minimum hours between posts (default: 8)
 - `MIN_SEO_SCORE`: Minimum SEO score to accept (default: 70)
 - `IMAGE_OUTPUT_DIR`: Directory for storing generated images
+- `ENABLE_HEARTBEAT`: Enable/disable the heartbeat mechanism (default: true)
+- `HEARTBEAT_INTERVAL_MINUTES`: Interval between heartbeats in minutes (default: 15)
 
 ## Improvements
 
@@ -173,6 +185,7 @@ Recent improvements to the system include:
 5. **Duplicate Prevention**: Ensures similar articles aren't published on the same day
 6. **Auto Image Cleanup**: Clears image directory after successful posting to save space
 7. **Removed Google Trends**: Shifted to more reliable news sources for trending topics
+8. **Heartbeat Mechanism**: Prevents HuggingFace Spaces from going to sleep by generating blogs at configurable intervals
 
 ## Monetization Features
 
@@ -245,8 +258,28 @@ To use the Google Sheets integration, you need a service account:
 3. Enable the Google Sheets API and Google Drive API
 4. Create a service account with "Editor" permissions
 5. Create and download a JSON key for the service account
-6. Save the JSON key as `credentials/service-account.json`
+
+#### Development Environment
+
+6. Save the JSON key as `service-account.json` in the project root directory
 7. Share your Google Sheets with the service account email address
+
+#### Production Environment
+
+6. Convert your service account JSON to an environment variable format:
+   ```bash
+   python helpers/convert_service_account_to_env.py
+   ```
+7. Add the output to your `.env` file or set it as an environment variable named `GOOGLE_SERVICE_ACCOUNT_INFO`
+8. Share your Google Sheets with the service account email address
+
+The application will automatically use the environment variable if available, or fall back to the file-based approach if needed.
+
+For detailed instructions on using environment variables in different deployment scenarios, see:
+
+- [Environment Variables Guide](docs/environment_variables.md)
+- [HuggingFace Spaces Deployment Guide](docs/huggingface_spaces.md)
+- Helper script: `python helpers/set_env_variables.py --help`
 
 ## Features
 

@@ -11,7 +11,7 @@ This guide explains how to set up Google Sheets API authentication to fetch affi
    - Search for "Google Sheets API"
    - Click "Enable"
 
-## Step 2: Create Service Account Credentials (Recommended for Server-Side Applications)
+## Step 2: Create Service Account Credentials
 
 1. In your Google Cloud Console, go to "APIs & Services" > "Credentials"
 2. Click "Create Credentials" > "Service Account"
@@ -23,7 +23,29 @@ This guide explains how to set up Google Sheets API authentication to fetch affi
 8. Click "Add Key" > "Create new key"
 9. Choose "JSON" and click "Create"
 10. The key file will be downloaded automatically
+
+### Option A: For Development Environment
+
 11. Rename this file to `service-account.json` and place it in the `credentials` folder
+
+### Option B: For Production Environment
+
+11. Convert the JSON content to an environment variable format: ```bash
+
+    # Place the downloaded JSON in the project root folder temporarily
+
+    mv your-downloaded-file.json service-account.json # Run the conversion script
+    python helpers/convert_service_account_to_env.py
+
+    # Add the output to your .env file or set it as an environment variable
+
+    # in your production environment
+
+    ```
+
+    ```
+
+The application will automatically use the environment variable `GOOGLE_SERVICE_ACCOUNT_INFO` if available, with fallback to the file-based approach.
 
 ## Step 3: Share Your Spreadsheet with the Service Account
 
