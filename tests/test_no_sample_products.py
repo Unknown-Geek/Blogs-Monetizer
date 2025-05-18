@@ -7,7 +7,8 @@ from typing import Dict, List
 
 # Make imports work correctly
 script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(script_dir)
+project_dir = os.path.dirname(script_dir)  # Go up one level to project root
+sys.path.append(project_dir)
 
 # Import services
 from services.ad_service import ad_service
@@ -56,19 +57,29 @@ def test_affiliate_products():
     return not using_samples and not sample_products
 
 def test_ad_service_sample_products():
-    """Test that AdService sample products method returns empty list"""
-    print("\n=== Testing AdService sample products method ===")
-    sample_products = ad_service._get_sample_products()
-    if sample_products:
-        print("WARNING: AdService._get_sample_products() still returns products!")
-        print(f"  - Returned {len(sample_products)} sample products")
-    else:
-        print("SUCCESS: AdService._get_sample_products() returns empty list as expected")
+    """Test that AdService doesn't use sample products"""
+    print("\n=== Testing AdService behavior with no spreadsheet URL ===")
+    # Temporarily save the current spreadsheet URL
+    original_url = ad_service.affiliate_spreadsheet_url
     
-    return not sample_products
+    try:
+        # Set the spreadsheet URL to None to test fallback behavior
+        ad_service.affiliate_spreadsheet_url = None
+        products = ad_service.fetch_affiliate_products()
+        
+        if products:
+            print("WARNING: AdService returns products even with no spreadsheet URL!")
+            print(f"  - Returned {len(products)} products")
+            return False
+        else:
+            print("SUCCESS: AdService returns empty list when no spreadsheet URL is set")
+            return True
+    finally:
+        # Restore the original URL
+        ad_service.affiliate_spreadsheet_url = original_url
 
-if __name__ == "__main__":
-    # Run tests
+def test_no_sample_products():
+    """Main test function that the test runner will look for"""
     print("\n==================================================")
     print("TESTING AFFILIATE PRODUCT INTEGRATION - NO FALLBACKS")
     print("==================================================\n")
@@ -77,5 +88,13 @@ if __name__ == "__main__":
     test_2 = test_ad_service_sample_products()
     
     print("\n==================================================")
-    print(f"OVERALL RESULT: {'SUCCESS' if test_1 and test_2 else 'FAILURE'}")
+    result = test_1 and test_2
+    print(f"OVERALL RESULT: {'SUCCESS' if result else 'FAILURE'}")
     print("==================================================\n")
+    
+    # Return the test result so the test runner can determine pass/fail
+    return result
+
+if __name__ == "__main__":
+    # Run tests directly when file is executed
+    test_no_sample_products()

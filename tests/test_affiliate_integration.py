@@ -6,6 +6,13 @@ and fetch affiliate product data.
 import os
 import sys
 from dotenv import load_dotenv
+
+# Add parent directory to path for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = os.path.dirname(current_dir)  # Go up one level to project root
+sys.path.append(project_dir)
+
+# Now import services after adjusting path
 from services.sheets_service import google_sheets_service
 
 # Load environment variables
@@ -96,14 +103,15 @@ def test_affiliate_products():
     
     return not using_samples
 
-if __name__ == "__main__":
+def test_affiliate_integration():
+    """Main test function that the test runner will look for"""
     print("Starting Affiliate Spreadsheet Integration Tests")
     
     # Test spreadsheet access
     access_success = test_spreadsheet_access()
     
+    # Test affiliate products formatting
     if access_success:
-        # Test affiliate products formatting
         products_success = test_affiliate_products()
         
         if products_success:
@@ -111,7 +119,16 @@ if __name__ == "__main__":
         else:
             print("\n⚠️ Spreadsheet access works, but using sample products.")
             print("Check your spreadsheet format and make sure it has valid product data.")
+            
+        # Return overall success status
+        return access_success and products_success
     else:
+        return False
+
+if __name__ == "__main__":
+    success = test_affiliate_integration()
+    
+    if not success:
         print("\n❌ Failed to access spreadsheet data.")
         print("Fix the issues above before continuing.")
     
