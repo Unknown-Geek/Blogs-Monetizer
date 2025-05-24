@@ -17,7 +17,7 @@ gspread>=5.10.0  # For Google Sheets API access
 nltk>=3.8.1
 
 # Social media integration
-tweepy>=4.10.0
+# Note: Twitter/X integration removed
 
 # Image processing
 pillow>=10.0.0 --only-binary :all:
