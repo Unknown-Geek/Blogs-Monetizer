@@ -143,7 +143,7 @@ The system will automatically attempt to fetch product images from the affiliate
 1. Extracts product images from the destination pages
 2. Uses various strategies to find the most relevant image:
    - Open Graph images
-   - Twitter card images
+   - Social media card images
    - Product showcase images
    - Largest relevant images on the page
 

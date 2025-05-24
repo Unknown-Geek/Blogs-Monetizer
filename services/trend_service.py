@@ -16,10 +16,8 @@ if os.path.exists(dotenv_path):
 
 class TrendService:
     """Service to detect trending topics for blog generation"""
-    
-    def __init__(self):
+      def __init__(self):
         self.google_trends_api_url = "https://trends.google.com/trends/api/dailytrends"
-        # Twitter API is no longer used
         self.news_api_url = "https://newsapi.org/v2/top-headlines"
         self.news_api_key = os.environ.get("NEWS_API_KEY", "YOUR_NEWS_API_KEY")
         
